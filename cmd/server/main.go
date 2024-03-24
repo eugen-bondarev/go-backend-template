@@ -31,12 +31,26 @@ func main() {
 	}
 
 	userRepo := impl.NewPGUserRepo(&pg)
-	user, err := userRepo.GetUserByEmail("eug.bondarev@gmail.com")
 
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	fmt.Println(user)
+	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
+	err = authSvc.CreateUser("admin@example.com", "lorem ipsum", "admin")
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	user, err := authSvc.AuthenticateUser("admin@example.com", "lorem ipsum")
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println("Successfully authenticated!", user)
 }

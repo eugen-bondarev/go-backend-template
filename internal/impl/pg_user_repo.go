@@ -26,6 +26,11 @@ func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
 	return userRepo.userMapper.ToUser(users[0]), nil
 }
 
+func (userRepo *PGUserRepo) CreateUser(email, passwordHash, role string) error {
+	_, err := userRepo.pg.GetDB().Exec("INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3)", email, passwordHash, role)
+	return err
+}
+
 func NewPGUserRepo(pg *Postgres) model.UserRepo {
 	return &PGUserRepo{
 		pg:         pg,
