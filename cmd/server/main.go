@@ -30,5 +30,7 @@ func main() {
 		return
 	}
 
-	fmt.Println(pg)
+	userRepo := impl.NewPGUserRepo(&pg)
+
+	fmt.Println(userRepo)
 }
