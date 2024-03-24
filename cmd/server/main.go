@@ -12,14 +12,18 @@ func main() {
 	godotenv.Load()
 
 	pg, err := impl.NewPostgres(
-		fmt.Sprintf(
-			"user=%s host=%s port=%s password=%s sslmode=disable",
-			os.Getenv("DB_USER"),
-			os.Getenv("DB_HOST"),
-			os.Getenv("DB_PORT"),
-			os.Getenv("DB_PASS"),
-		),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASS"),
+		os.Getenv("DB_PORT"),
 	)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = pg.Migrate()
 
 	if err != nil {
 		fmt.Println(err.Error())
