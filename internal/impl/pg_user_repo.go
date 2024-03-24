@@ -1,6 +1,9 @@
 package impl
 
-import "go-backend-template/internal/model"
+import (
+	"errors"
+	"go-backend-template/internal/model"
+)
 
 type PGUserRepo struct {
 	pg         *Postgres
@@ -14,6 +17,10 @@ func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
 
 	if err != nil {
 		return model.User{}, err
+	}
+
+	if len(users) == 0 {
+		return model.User{}, errors.New("user not found")
 	}
 
 	return userRepo.userMapper.ToUser(users[0]), nil

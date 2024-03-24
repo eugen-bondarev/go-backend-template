@@ -12,7 +12,7 @@ func NewPGUserMapper() model.UserMapper[PGUser] {
 func (userMapper *PGUserMapper) FromUser(user model.User) PGUser {
 	return PGUser{
 		ID:           user.ID,
-		Username:     user.Username,
+		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
 		Role:         user.Role,
 	}
@@ -21,7 +21,7 @@ func (userMapper *PGUserMapper) FromUser(user model.User) PGUser {
 func (userMapper *PGUserMapper) ToUser(pgUser PGUser) model.User {
 	return model.User{
 		ID:           pgUser.ID,
-		Username:     pgUser.Username,
+		Email:        pgUser.Email,
 		PasswordHash: pgUser.PasswordHash,
 		Role:         pgUser.Role,
 	}

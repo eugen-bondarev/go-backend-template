@@ -2,7 +2,7 @@ package impl
 
 type PGUser struct {
 	ID           int    `db:"id"`
-	Username     string `db:"username"`
+	Email        string `db:"email"`
 	PasswordHash string `db:"password_hash"`
 	Role         string `db:"role"`
 }

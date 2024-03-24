@@ -31,6 +31,12 @@ func main() {
 	}
 
 	userRepo := impl.NewPGUserRepo(&pg)
+	user, err := userRepo.GetUserByEmail("eug.bondarev@gmail.com")
 
-	fmt.Println(userRepo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println(user)
 }
