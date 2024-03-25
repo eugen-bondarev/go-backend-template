@@ -1,11 +1,6 @@
 package model
 
-type Payload struct {
-	ID   int
-	Role string
-}
-
 type SigningSvc interface {
-	Sign(Payload) (string, error)
-	Parse(string) (Payload, error)
+	Sign(ID int, role string) (string, error)
+	Parse(string) (int, string, error)
 }

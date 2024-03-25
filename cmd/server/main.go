@@ -38,12 +38,12 @@ func main() {
 	}
 
 	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
-	err = authSvc.CreateUser("admin@example.com", "lorem ipsum", "admin")
+	// err = authSvc.CreateUser("admin@example.com", "lorem ipsum", "admin")
 
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// 	return
+	// }
 
 	user, err := authSvc.AuthenticateUser("admin@example.com", "lorem ipsum")
 
@@ -52,5 +52,24 @@ func main() {
 		return
 	}
 
-	fmt.Println("Successfully authenticated!", user)
+	fmt.Println("Successfully authenticated", user)
+
+	signingSvc := impl.NewJWTSigningSvc("foo")
+	token, err := signingSvc.Sign(user.ID, user.Role)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println("Successfully signed", token)
+
+	parsedID, parsedRole, err := signingSvc.Parse(token)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println("Successfully parsed", parsedID, parsedRole)
 }
