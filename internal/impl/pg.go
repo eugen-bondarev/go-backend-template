@@ -71,7 +71,7 @@ func (pg *Postgres) getNumMigrations() (int, error) {
 	return count[0], nil
 }
 
-func (pg *Postgres) Migrate() error {
+func (pg *Postgres) Migrate(migrationsDir string) error {
 	ctx := context.Background()
 
 	tx, err := pg.db.BeginTx(ctx, nil)
@@ -82,7 +82,8 @@ func (pg *Postgres) Migrate() error {
 
 	defer tx.Rollback()
 
-	migrations, err := filepath.Glob("./assets/migrations/*.sql")
+	migrationsPattern := migrationsDir + "/*.sql"
+	migrations, err := filepath.Glob(migrationsPattern)
 
 	if err != nil {
 		return err

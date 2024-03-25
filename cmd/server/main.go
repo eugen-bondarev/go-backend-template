@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	err = pg.Migrate()
+	err = pg.Migrate("./assets/migrations")
 
 	if err != nil {
 		fmt.Println(err.Error())
