@@ -3,6 +3,7 @@ module go-backend-template
 go 1.21.5
 
 require (
+	github.com/eugen-bondarev/go-slice-helpers v1.0.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/jmoiron/sqlx v1.3.5
