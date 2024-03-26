@@ -13,48 +13,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Permission struct {
-	Object  string
-	Action  string
-	Subject string
-}
+type RouteHandler interface{}
 
-func NewPermission(subject, action, object string) Permission {
-	return Permission{
-		Subject: subject,
-		Action:  action,
-		Object:  object,
-	}
-}
+type GinRouteHandler struct{}
 
-type Permissions struct {
-	permissions []Permission
-}
-
-func NewPermissions() Permissions {
-	return Permissions{
-		permissions: make([]Permission, 0),
-	}
-}
-
-func (p *Permissions) Add(subject, action, object string) {
-	p.permissions = append(p.permissions, NewPermission(subject, action, object))
-}
-
-func (p *Permissions) RoleCan(subject, action, object string) bool {
-	for _, permission := range p.permissions {
-		if permission.Subject == subject && permission.Action == action && permission.Object == object {
-			return true
-		}
-	}
-	return false
+func (h *GinRouteHandler) GetHandlersChain() gin.HandlersChain {
+	return []gin.HandlerFunc{}
 }
 
 type App struct {
 	userRepo    model.UserRepo
 	signingSvc  model.SigningSvc
 	authSvc     model.AuthSvc
-	permissions Permissions
+	permissions impl.Permissions
 }
 
 func NewApp() (App, error) {
@@ -79,7 +50,7 @@ func NewApp() (App, error) {
 	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
 	signingSvc := impl.NewJWTSigningSvc("foo")
 
-	permissions := NewPermissions()
+	permissions := impl.NewPermissions()
 	permissions.Add("admin", "list", "users")
 	permissions.Add("user", "list", "users")
 
