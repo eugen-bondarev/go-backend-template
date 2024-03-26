@@ -86,18 +86,6 @@ func (app *App) users() ([]model.User, error) {
 	return app.userRepo.GetUsers()
 }
 
-func (app *App) login(email, plainTextPassword string) (string, error) {
-	user, err := app.authSvc.AuthenticateUser(email, plainTextPassword)
-
-	if err != nil {
-		return "", err
-	}
-
-	token, err := app.signingSvc.Sign(user.ID, user.Role)
-
-	return token, err
-}
-
 func main() {
 	godotenv.Load()
 
@@ -116,7 +104,10 @@ func main() {
 	v1.GET("/users", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
 		return app.users()
 	}))
-	v1.POST("/login", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+
+	auth := v1.Group("/auth")
+
+	auth.POST("/login", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
 		type Payload struct {
 			Email    string `json:"email"`
 			Password string `json:"password"`
@@ -125,6 +116,18 @@ func main() {
 		ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
 		return app.login(payload.Email, payload.Password)
+	}))
+
+	auth.POST("/register", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+		type Payload struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		var payload Payload
+		ctx.ShouldBindBodyWith(&payload, binding.JSON)
+
+		err := app.register(payload.Email, payload.Password)
+		return nil, err
 	}))
 
 	r.Run("0.0.0.0:8081")
