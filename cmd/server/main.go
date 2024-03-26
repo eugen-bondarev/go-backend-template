@@ -101,6 +101,20 @@ func (app *App) requiredAuthMiddleware(action, object string) func(*gin.Context)
 	}
 }
 
+func (app *App) decorateWithPermissions(action, object string, handler func(*gin.Context) (any, error)) gin.HandlersChain {
+	chain := make(gin.HandlersChain, 0, 3)
+	chain = append(chain, util.DecorateMiddleware(app.authMiddleware))
+	chain = append(chain, util.DecorateRequiredMiddleware(app.requiredAuthMiddleware(action, object)))
+	chain = append(chain, util.DecorateHandler(handler))
+	return chain
+}
+
+func (app *App) decorateForAnyone(handler func(*gin.Context) (any, error)) gin.HandlersChain {
+	chain := make(gin.HandlersChain, 0, 1)
+	chain = append(chain, util.DecorateHandler(handler))
+	return chain
+}
+
 func main() {
 	godotenv.Load()
 
@@ -119,36 +133,48 @@ func main() {
 
 	v1.GET(
 		"/users",
-		util.DecorateMiddleware(app.authMiddleware),
-		util.DecorateRequiredMiddleware(app.requiredAuthMiddleware("list", "users")),
-		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			return app.users()
-		}),
+		app.decorateWithPermissions(
+			"list",
+			"users",
+			func(ctx *gin.Context) (any, error) {
+				return app.users()
+			},
+		)...,
 	)
 
 	auth := v1.Group("/auth")
 
-	auth.POST("/login", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-		type Payload struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		var payload Payload
-		ctx.ShouldBindBodyWith(&payload, binding.JSON)
+	auth.POST(
+		"/login",
+		app.decorateForAnyone(
+			func(ctx *gin.Context) (any, error) {
+				type Payload struct {
+					Email    string `json:"email"`
+					Password string `json:"password"`
+				}
+				var payload Payload
+				ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
-		return app.login(payload.Email, payload.Password)
-	}))
+				return app.login(payload.Email, payload.Password)
+			},
+		)...,
+	)
 
-	auth.POST("/register", util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-		type Payload struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		var payload Payload
-		ctx.ShouldBindBodyWith(&payload, binding.JSON)
+	auth.POST(
+		"/register",
+		app.decorateForAnyone(
+			func(ctx *gin.Context) (any, error) {
+				type Payload struct {
+					Email    string `json:"email"`
+					Password string `json:"password"`
+				}
+				var payload Payload
+				ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
-		return nil, app.register(payload.Email, payload.Password)
-	}))
+				return nil, app.register(payload.Email, payload.Password)
+			},
+		)...,
+	)
 
 	r.Run("0.0.0.0:8081")
 }
