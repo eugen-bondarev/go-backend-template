@@ -42,6 +42,7 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 			return
 		}
 
+		ctx.Header("Content-Type", "application/problem+json")
 		parsedErr, ok := err.(*RequestError)
 		if ok {
 			ctx.JSON(parsedErr.StatusCode, gin.H{

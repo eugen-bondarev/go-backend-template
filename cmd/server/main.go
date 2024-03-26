@@ -27,11 +27,34 @@ func NewPermission(subject, action, object string) Permission {
 	}
 }
 
+type Permissions struct {
+	permissions []Permission
+}
+
+func NewPermissions() Permissions {
+	return Permissions{
+		permissions: make([]Permission, 0),
+	}
+}
+
+func (p *Permissions) Add(subject, action, object string) {
+	p.permissions = append(p.permissions, NewPermission(subject, action, object))
+}
+
+func (p *Permissions) RoleCan(subject, action, object string) bool {
+	for _, permission := range p.permissions {
+		if permission.Subject == subject && permission.Action == action && permission.Object == object {
+			return true
+		}
+	}
+	return false
+}
+
 type App struct {
 	userRepo    model.UserRepo
 	signingSvc  model.SigningSvc
 	authSvc     model.AuthSvc
-	permissions []Permission
+	permissions Permissions
 }
 
 func NewApp() (App, error) {
@@ -56,9 +79,9 @@ func NewApp() (App, error) {
 	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
 	signingSvc := impl.NewJWTSigningSvc("foo")
 
-	permissions := make([]Permission, 0)
-	permissions = append(permissions, NewPermission("user", "list", "users"))
-	permissions = append(permissions, NewPermission("admin", "list", "users"))
+	permissions := NewPermissions()
+	permissions.Add("admin", "list", "users")
+	permissions.Add("user", "list", "users")
 
 	return App{
 		userRepo:    userRepo,
@@ -86,18 +109,16 @@ func (app *App) authMiddleware(ctx *gin.Context) {
 
 func (app *App) requiredAuthMiddleware(action, object string) func(*gin.Context) error {
 	return func(ctx *gin.Context) error {
-		role, _ := ctx.Get("role")
+		role := ctx.GetString("role")
 
-		for _, permission := range app.permissions {
-			if permission.Subject == role && permission.Action == action && permission.Object == object {
-				return nil
+		if !app.permissions.RoleCan(role, action, object) {
+			return &util.RequestError{
+				StatusCode: 403,
+				Err:        fmt.Errorf("unauthorized"),
 			}
 		}
 
-		return &util.RequestError{
-			StatusCode: 403,
-			Err:        fmt.Errorf("unauthorized"),
-		}
+		return nil
 	}
 }
 
@@ -176,5 +197,5 @@ func main() {
 		)...,
 	)
 
-	r.Run("0.0.0.0:8081")
+	r.Run("0.0.0.0:4200")
 }
