@@ -49,6 +49,11 @@ func (userRepo *PGUserRepo) CreateUser(email, passwordHash, role string) error {
 	return err
 }
 
+func (userRepo *PGUserRepo) DeleteUserByID(id int) error {
+	_, err := userRepo.pg.GetDB().Exec("DELETE FROM users WHERE id = $1", id)
+	return err
+}
+
 func NewPGUserRepo(pg *Postgres) model.UserRepo {
 	return &PGUserRepo{
 		pg:         pg,

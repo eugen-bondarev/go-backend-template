@@ -1,31 +1,23 @@
 package main
 
 import (
-	"fmt"
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/model"
 	"go-backend-template/internal/util"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/joho/godotenv"
 )
 
-type RouteHandler interface{}
-
-type GinRouteHandler struct{}
-
-func (h *GinRouteHandler) GetHandlersChain() gin.HandlersChain {
-	return []gin.HandlerFunc{}
-}
-
 type App struct {
-	userRepo    model.UserRepo
-	signingSvc  model.SigningSvc
-	authSvc     model.AuthSvc
-	permissions impl.Permissions
+	userRepo   model.UserRepo
+	signingSvc model.SigningSvc
+	authSvc    model.AuthSvc
+	policies   impl.Policies
 }
 
 func NewApp() (App, error) {
@@ -50,61 +42,16 @@ func NewApp() (App, error) {
 	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
 	signingSvc := impl.NewJWTSigningSvc("foo")
 
-	permissions := impl.NewPermissions()
-	permissions.Add("admin", "list", "users")
-	permissions.Add("user", "list", "users")
+	policies := impl.NewPolicies()
+	policies.Add("admin", "index", "users")
+	policies.Add("admin", "manage", "users")
 
 	return App{
-		userRepo:    userRepo,
-		signingSvc:  signingSvc,
-		authSvc:     authSvc,
-		permissions: permissions,
+		userRepo:   userRepo,
+		signingSvc: signingSvc,
+		authSvc:    authSvc,
+		policies:   policies,
 	}, nil
-}
-
-func (app *App) users() ([]model.User, error) {
-	return app.userRepo.GetUsers()
-}
-
-func (app *App) authMiddleware(ctx *gin.Context) {
-	authHeader := ctx.Request.Header.Get("Authorization")
-	middleware.Auth(
-		app.signingSvc,
-		authHeader,
-		func(ID int, role string) {
-			ctx.Set("ID", ID)
-			ctx.Set("role", role)
-		},
-	)
-}
-
-func (app *App) requiredAuthMiddleware(action, object string) func(*gin.Context) error {
-	return func(ctx *gin.Context) error {
-		role := ctx.GetString("role")
-
-		if !app.permissions.RoleCan(role, action, object) {
-			return &util.RequestError{
-				StatusCode: 403,
-				Err:        fmt.Errorf("unauthorized"),
-			}
-		}
-
-		return nil
-	}
-}
-
-func (app *App) decorateWithPermissions(action, object string, handler func(*gin.Context) (any, error)) gin.HandlersChain {
-	chain := make(gin.HandlersChain, 0, 3)
-	chain = append(chain, util.DecorateMiddleware(app.authMiddleware))
-	chain = append(chain, util.DecorateRequiredMiddleware(app.requiredAuthMiddleware(action, object)))
-	chain = append(chain, util.DecorateHandler(handler))
-	return chain
-}
-
-func (app *App) decorateForAnyone(handler func(*gin.Context) (any, error)) gin.HandlersChain {
-	chain := make(gin.HandlersChain, 0, 1)
-	chain = append(chain, util.DecorateHandler(handler))
-	return chain
 }
 
 func main() {
@@ -120,52 +67,66 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	mw := middleware.NewGinMiddlewareFactory(
+		app.signingSvc,
+		&app.policies,
+	)
+
 	r := gin.Default()
 	v1 := r.Group("/v1")
 
 	v1.GET(
 		"/users",
-		app.decorateWithPermissions(
-			"list",
-			"users",
-			func(ctx *gin.Context) (any, error) {
-				return app.users()
-			},
-		)...,
+		mw.SetRole(),
+		mw.EnforcePolicy("index", "users"),
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			return app.userRepo.GetUsers()
+		}),
+	)
+
+	v1.DELETE(
+		"/users/:id",
+		mw.SetRole(),
+		mw.EnforcePolicy("manage", "users"),
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			id, err := strconv.Atoi(ctx.Params.ByName("id"))
+
+			if err != nil {
+				return nil, err
+			}
+
+			return nil, app.userRepo.DeleteUserByID(id)
+		}),
 	)
 
 	auth := v1.Group("/auth")
 
 	auth.POST(
 		"/login",
-		app.decorateForAnyone(
-			func(ctx *gin.Context) (any, error) {
-				type Payload struct {
-					Email    string `json:"email"`
-					Password string `json:"password"`
-				}
-				var payload Payload
-				ctx.ShouldBindBodyWith(&payload, binding.JSON)
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			type Payload struct {
+				Email    string `json:"email"`
+				Password string `json:"password"`
+			}
+			var payload Payload
+			ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
-				return app.login(payload.Email, payload.Password)
-			},
-		)...,
+			return app.login(payload.Email, payload.Password)
+		}),
 	)
 
 	auth.POST(
 		"/register",
-		app.decorateForAnyone(
-			func(ctx *gin.Context) (any, error) {
-				type Payload struct {
-					Email    string `json:"email"`
-					Password string `json:"password"`
-				}
-				var payload Payload
-				ctx.ShouldBindBodyWith(&payload, binding.JSON)
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			type Payload struct {
+				Email    string `json:"email"`
+				Password string `json:"password"`
+			}
+			var payload Payload
+			ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
-				return nil, app.register(payload.Email, payload.Password)
-			},
-		)...,
+			return nil, app.register(payload.Email, payload.Password)
+		}),
 	)
 
 	r.Run("0.0.0.0:4200")
