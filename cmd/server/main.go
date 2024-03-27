@@ -69,6 +69,7 @@ func ParseMap[TOut any](m map[string]interface{}) (TOut, error) {
 	return output, err
 }
 
+// TODO: take a look into this: https://github.com/graph-gophers/graphql-go
 func main() {
 	godotenv.Load()
 
