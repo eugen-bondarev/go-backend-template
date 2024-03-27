@@ -1,23 +1,28 @@
 package main
 
 import (
+	"fmt"
+	"go-backend-template/internal/dto"
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/model"
-	"go-backend-template/internal/util"
 	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/graphql-go/graphql"
 	"github.com/joho/godotenv"
+	"github.com/mitchellh/mapstructure"
 )
 
+var validate *validator.Validate
+
 type App struct {
-	userRepo   model.UserRepo
-	signingSvc model.SigningSvc
-	authSvc    model.AuthSvc
-	policies   impl.Policies
+	signingSvc     model.SigningSvc
+	authSvc        model.AuthSvc
+	userController dto.UserController
+	policies       impl.Policies
 }
 
 func NewApp() (App, error) {
@@ -46,16 +51,28 @@ func NewApp() (App, error) {
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
 
+	dtoUserMapper := impl.NewDTOUserMapper()
+	userController := dto.NewUserController(userRepo, dtoUserMapper)
+
 	return App{
-		userRepo:   userRepo,
-		signingSvc: signingSvc,
-		authSvc:    authSvc,
-		policies:   policies,
+		userController: userController,
+		signingSvc:     signingSvc,
+		authSvc:        authSvc,
+		policies:       policies,
 	}, nil
+}
+
+func ParseMap[TOut any](m map[string]interface{}) (TOut, error) {
+	var output TOut
+	mapstructure.Decode(&m, &output)
+	err := validate.Struct(output)
+	return output, err
 }
 
 func main() {
 	godotenv.Load()
+
+	validate = validator.New()
 
 	app, err := NewApp()
 
@@ -96,32 +113,36 @@ func main() {
 				"role": &graphql.ArgumentConfig{
 					Type: graphql.String,
 				},
+				"accessToken": &graphql.ArgumentConfig{
+					Type: graphql.String,
+				},
 			},
 			Resolve: func(p graphql.ResolveParams) (any, error) {
-				var users []model.User
-				var err error
-
-				if p.Args["role"] != nil {
-					users, err = app.userRepo.GetUsersByRole(p.Args["role"].(string))
-				} else {
-					users, err = app.userRepo.GetUsers()
+				type Args struct {
+					Role        string `json:"role" validate:"gte=0,lte=130"`
+					AccessToken string `json:"accessToken"`
 				}
+
+				args, err := ParseMap[Args](p.Args)
 
 				if err != nil {
+					fmt.Println(err.Error())
 					return nil, nil
 				}
+				fmt.Println(args)
 
-				output := util.Map(users, func(user model.User) model.APIUser {
-					return model.APIUser{ID: user.ID, Email: user.Email, Role: user.Role}
-				})
-
-				return output, nil
+				if args.Role != "" {
+					return app.userController.GetUsersByRole(args.Role)
+				}
+				return app.userController.GetUsers()
 			},
 		},
 	}
 
 	rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
-	schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
+	schemaConfig := graphql.SchemaConfig{
+		Query: graphql.NewObject(rootQuery),
+	}
 	schema, err := graphql.NewSchema(schemaConfig)
 	if err != nil {
 		log.Fatalf("failed to create new schema, error: %v", err)
@@ -133,12 +154,14 @@ func main() {
 	})
 	httpRouter.POST("/graphql", func(ctx *gin.Context) {
 		type payload struct {
-			Query string `json:"query"`
+			Query     string                 `json:"query"`
+			Variables map[string]interface{} `json:"variables"`
 		}
 		var pl payload
 		ctx.ShouldBindBodyWith(&pl, binding.JSON)
 
-		params := graphql.Params{Schema: schema, RequestString: pl.Query}
+		params := graphql.Params{Schema: schema, RequestString: pl.Query, VariableValues: pl.Variables}
+
 		r := graphql.Do(params)
 		if len(r.Errors) > 0 {
 			log.Fatalf("failed to execute graphql operation, errors: %+v", r.Errors)

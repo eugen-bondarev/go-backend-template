@@ -1,6 +1,6 @@
-package model
+package dto
 
-type APIUser struct {
+type User struct {
 	ID    int    `json:"id"`
 	Email string `json:"email"`
 	Role  string `json:"role"`
