@@ -44,6 +44,22 @@ func (userRepo *PGUserRepo) GetUsers() ([]model.User, error) {
 	return parallel.Map(users, userRepo.userMapper.ToUser), nil
 }
 
+func (userRepo *PGUserRepo) GetUsersByRole(role string) ([]model.User, error) {
+	var users []PGUser
+
+	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users WHERE role = $1", role)
+
+	if err != nil {
+		return []model.User{}, err
+	}
+
+	if len(users) == 0 {
+		return []model.User{}, errors.New("user not found")
+	}
+
+	return parallel.Map(users, userRepo.userMapper.ToUser), nil
+}
+
 func (userRepo *PGUserRepo) CreateUser(email, passwordHash, role string) error {
 	_, err := userRepo.pg.GetDB().Exec("INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3)", email, passwordHash, role)
 	return err
