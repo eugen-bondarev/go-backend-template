@@ -1,9 +1,12 @@
 package util
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 )
 
 func GetParamString(params *gin.Params, key string) (string, bool) {
@@ -80,4 +83,20 @@ func DecorateHandler(handler func(*gin.Context) (any, error)) func(*gin.Context)
 
 		ctx.JSON(200, result)
 	}
+}
+
+var validation = validator.New()
+
+func GinGetBody[TOut any](ctx *gin.Context) (TOut, error) {
+	var payload TOut
+	ctx.ShouldBindBodyWith(&payload, binding.JSON)
+	err := validation.Struct(&payload)
+
+	if err == nil {
+		return payload, nil
+	}
+
+	validationErrors := err.(validator.ValidationErrors)
+
+	return payload, fmt.Errorf("field '%s' is invalid", validationErrors[0].Field())
 }

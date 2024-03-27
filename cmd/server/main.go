@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go-backend-template/internal/dto"
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/model"
@@ -9,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/joho/godotenv"
 )
 
@@ -104,12 +104,14 @@ func main() {
 	auth.POST(
 		"/login",
 		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			type Payload struct {
-				Email    string `json:"email"`
-				Password string `json:"password"`
+			payload, err := util.GinGetBody[struct {
+				dto.WithEmail
+				dto.WithPassword
+			}](ctx)
+
+			if err != nil {
+				return nil, err
 			}
-			var payload Payload
-			ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
 			return app.login(payload.Email, payload.Password)
 		}),
@@ -118,12 +120,14 @@ func main() {
 	auth.POST(
 		"/register",
 		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			type Payload struct {
-				Email    string `json:"email"`
-				Password string `json:"password"`
+			payload, err := util.GinGetBody[struct {
+				dto.WithEmail
+				dto.WithPassword
+			}](ctx)
+
+			if err != nil {
+				return nil, err
 			}
-			var payload Payload
-			ctx.ShouldBindBodyWith(&payload, binding.JSON)
 
 			return nil, app.register(payload.Email, payload.Password)
 		}),
