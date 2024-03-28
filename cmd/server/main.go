@@ -4,12 +4,13 @@ import (
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/model"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 
+	"github.com/eugen-bondarev/go-slice-helpers/parallel"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
+	"github.com/joho/godotenv"
 )
 
 type App struct {
@@ -54,31 +55,9 @@ func NewApp() (App, error) {
 }
 
 type TestUser struct {
-	IDField        int32
-	FirstNameField string
-	LastNameField  string
-	RoleField      string
-}
-
-var users = []*TestUser{
-	{
-		IDField:        1,
-		FirstNameField: "Diana",
-		LastNameField:  "Shelest",
-		RoleField:      "wife",
-	},
-	{
-		IDField:        2,
-		FirstNameField: "Eugen",
-		LastNameField:  "Bondarev",
-		RoleField:      "admin",
-	},
-	{
-		IDField:        3,
-		FirstNameField: "Ostap",
-		LastNameField:  "Bondarev",
-		RoleField:      "brother",
-	},
+	IDField    int32
+	EmailField string
+	RoleField  string
 }
 
 type TestTodo struct {
@@ -105,16 +84,11 @@ func (r *resolver) Users() []*TestUser {
 
 func (r *resolver) CreateUser(args struct {
 	User struct {
-		FirstName string
-		LastName  string
+		Email        string
+		PasswordHash string
 	}
 }) *bool {
-	users = append(users, &TestUser{
-		IDField:        rand.Int31n(10000),
-		FirstNameField: args.User.FirstName,
-		LastNameField:  args.User.LastName,
-		RoleField:      "user",
-	})
+	globalApp.userRepo.CreateUser(args.User.Email, args.User.PasswordHash, "user")
 	return nil
 }
 
@@ -126,28 +100,46 @@ func (u TestUser) ID() int32 {
 	return u.IDField
 }
 
-func (u TestUser) FirstName() string {
-	return u.FirstNameField
-}
-
-func (u TestUser) LastName() string {
-	return u.LastNameField
+func (u TestUser) Email() string {
+	return u.EmailField
 }
 
 func (u TestUser) Role() string {
 	return u.RoleField
 }
 
+var globalApp *App
+
 func (query) Users() []*TestUser {
-	return users
+	users, err := globalApp.userRepo.GetUsers()
+
+	if err != nil {
+		return []*TestUser{}
+	}
+
+	return parallel.Map(users, func(user model.User) *TestUser {
+		return &TestUser{
+			IDField:    int32(user.ID),
+			EmailField: user.Email,
+		}
+	})
 }
 
 func main() {
+	godotenv.Load()
+
+	app, err := NewApp()
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	globalApp = &app
+
 	s := `
 		type User {
 			ID: Int!
-			FirstName: String!
-			LastName: String!
+			Email: String!
 			Role: String!
 		}
 
@@ -160,8 +152,8 @@ func main() {
 		}
 
 		input UserInput {
-			FirstName: String!
-			LastName: String!
+			Email: String!
+			PasswordHash: String!
 		}
 	`
 	schema := graphql.MustParseSchema(s, &resolver{})
