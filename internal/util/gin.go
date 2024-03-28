@@ -100,3 +100,9 @@ func GinGetBody[TOut any](ctx *gin.Context) (TOut, error) {
 
 	return payload, fmt.Errorf("field '%s' is invalid", validationErrors[0].Field())
 }
+
+func GinHealthz(r gin.IRouter) {
+	r.GET("/healthz", func(ctx *gin.Context) {
+		ctx.JSON(200, "ok")
+	})
+}

@@ -73,6 +73,9 @@ func main() {
 	)
 
 	r := gin.Default()
+
+	util.GinHealthz(r)
+
 	v1 := r.Group("/v1")
 
 	v1.GET(
