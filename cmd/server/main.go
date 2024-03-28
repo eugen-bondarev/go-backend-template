@@ -73,6 +73,7 @@ func main() {
 	)
 
 	r := gin.Default()
+	r.SetTrustedProxies(nil)
 
 	util.GinHealthz(r)
 
