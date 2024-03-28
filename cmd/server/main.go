@@ -1,16 +1,14 @@
 package main
 
 import (
-	"go-backend-template/internal/dto"
 	"go-backend-template/internal/impl"
-	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/model"
-	"go-backend-template/internal/util"
+	"log"
+	"net/http"
 	"os"
-	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"github.com/graph-gophers/graphql-go"
+	"github.com/graph-gophers/graphql-go/relay"
 )
 
 type App struct {
@@ -54,89 +52,107 @@ func NewApp() (App, error) {
 	}, nil
 }
 
+type query struct{}
+
+func (query) Hello() string {
+	return "hello, wordl"
+}
+
 func main() {
-	godotenv.Load()
+	s := `
+		type Query {
+			hello: String!
+		}
+	`
+	schema := graphql.MustParseSchema(s, &query{})
+	// r := gin.Default()
 
-	app, err := NewApp()
+	http.Handle("/", &relay.Handler{Schema: schema})
+	log.Fatal(http.ListenAndServe(":4200", nil))
+	// r.GET("/query", &relay.Handler{Schema: schema})
 
-	if err != nil {
-		panic(err.Error())
-	}
+	// godotenv.Load()
 
-	if os.Getenv("GIN_MODE") == "release" {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	// app, err := NewApp()
 
-	mw := middleware.NewGinMiddlewareFactory(
-		app.signingSvc,
-		&app.policies,
-	)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
 
-	r := gin.Default()
-	r.SetTrustedProxies(nil)
-	r.Use(util.GinConfigureCors(os.Getenv("CORS_ALLOW_ORIGINS")))
+	// if os.Getenv("GIN_MODE") == "release" {
+	// 	gin.SetMode(gin.ReleaseMode)
+	// }
 
-	util.GinHealthz(r)
+	// mw := middleware.NewGinMiddlewareFactory(
+	// 	app.signingSvc,
+	// 	&app.policies,
+	// )
 
-	v1 := r.Group("/v1")
+	// r := gin.Default()
+	// r.SetTrustedProxies(nil)
+	// r.Use(util.GinConfigureCors(os.Getenv("CORS_ALLOW_ORIGINS")))
 
-	v1.GET(
-		"/users",
-		mw.SetRole(),
-		mw.EnforcePolicy("index", "users"),
-		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			return app.userRepo.GetUsers()
-		}),
-	)
+	// util.GinHealthz(r)
 
-	v1.DELETE(
-		"/users/:id",
-		mw.SetRole(),
-		mw.EnforcePolicy("manage", "users"),
-		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			id, err := strconv.Atoi(ctx.Params.ByName("id"))
+	// v1 := r.Group("/v1")
 
-			if err != nil {
-				return nil, err
-			}
+	// v1.GET(
+	// 	"/users",
+	// 	mw.SetRole(),
+	// 	mw.EnforcePolicy("index", "users"),
+	// 	util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+	// 		return app.userRepo.GetUsers()
+	// 	}),
+	// )
 
-			return nil, app.userRepo.DeleteUserByID(id)
-		}),
-	)
+	// v1.DELETE(
+	// 	"/users/:id",
+	// 	mw.SetRole(),
+	// 	mw.EnforcePolicy("manage", "users"),
+	// 	util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+	// 		id, err := strconv.Atoi(ctx.Params.ByName("id"))
 
-	auth := v1.Group("/auth")
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
 
-	auth.POST(
-		"/login",
-		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			payload, err := util.GinGetBody[struct {
-				dto.WithEmail
-				dto.WithPassword
-			}](ctx)
+	// 		return nil, app.userRepo.DeleteUserByID(id)
+	// 	}),
+	// )
 
-			if err != nil {
-				return nil, err
-			}
+	// auth := v1.Group("/auth")
 
-			return app.login(payload.Email, payload.Password)
-		}),
-	)
+	// auth.POST(
+	// 	"/login",
+	// 	util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+	// 		payload, err := util.GinGetBody[struct {
+	// 			dto.WithEmail
+	// 			dto.WithPassword
+	// 		}](ctx)
 
-	auth.POST(
-		"/register",
-		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			payload, err := util.GinGetBody[struct {
-				dto.WithEmail
-				dto.WithPassword
-			}](ctx)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
 
-			if err != nil {
-				return nil, err
-			}
+	// 		return app.login(payload.Email, payload.Password)
+	// 	}),
+	// )
 
-			return nil, app.register(payload.Email, payload.Password)
-		}),
-	)
+	// auth.POST(
+	// 	"/register",
+	// 	util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+	// 		payload, err := util.GinGetBody[struct {
+	// 			dto.WithEmail
+	// 			dto.WithPassword
+	// 		}](ctx)
 
-	r.Run("0.0.0.0:4200")
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+
+	// 		return nil, app.register(payload.Email, payload.Password)
+	// 	}),
+	// )
+
+	// r.Run("0.0.0.0:4200")
 }
