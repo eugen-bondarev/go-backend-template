@@ -74,6 +74,7 @@ func main() {
 
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
+	r.Use(util.GinConfigureCors(os.Getenv("CORS_ALLOW_ORIGINS")))
 
 	util.GinHealthz(r)
 

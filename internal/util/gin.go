@@ -3,7 +3,9 @@ package util
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -105,4 +107,16 @@ func GinHealthz(r gin.IRouter) {
 	r.GET("/healthz", func(ctx *gin.Context) {
 		ctx.JSON(200, "ok")
 	})
+}
+
+func GinConfigureCors(commaSeparatedOrigins string) gin.HandlerFunc {
+	config := cors.DefaultConfig()
+	if len(commaSeparatedOrigins) > 0 {
+		config.AllowOrigins = strings.Split(commaSeparatedOrigins, ",")
+	} else {
+		config.AllowAllOrigins = true
+	}
+	config.AllowMethods = []string{"GET", "PUT", "POST", "PATCH", "DELETE", "OPTIONS", "HEAD"}
+	fmt.Println(config)
+	return cors.New(config)
 }
