@@ -39,8 +39,8 @@ func NewApp() (App, error) {
 	}
 
 	userRepo := impl.NewPGUserRepo(&pg)
-	authSvc := impl.NewDefaultAuthSvc(userRepo, "foobar")
-	signingSvc := impl.NewJWTSigningSvc("foo")
+	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
+	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
 
 	policies := impl.NewPolicies()
 	policies.Add("admin", "index", "users")
