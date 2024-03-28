@@ -22,25 +22,31 @@ func (authSvc *DefaultAuthSvc) CreateUser(email, plainTextPassword, role string)
 	bytes, err := bcrypt.GenerateFromPassword([]byte(plainTextPassword+authSvc.pepper), bcrypt.DefaultCost)
 
 	if err != nil {
-		return err
+		return model.ErrAuthSvcCreateUserFailed
 	}
 
 	encryptedPass := string(bytes)
 
-	return authSvc.userRepo.CreateUser(email, encryptedPass, role)
+	err = authSvc.userRepo.CreateUser(email, encryptedPass, role)
+
+	if err != nil {
+		return model.ErrAuthSvcCreateUserFailed
+	}
+
+	return nil
 }
 
 func (authSvc *DefaultAuthSvc) AuthenticateUser(email, plainTextPassword string) (model.User, error) {
 	user, err := authSvc.userRepo.GetUserByEmail(email)
 
 	if err != nil {
-		return model.User{}, err
+		return model.User{}, model.ErrAuthSvcAuthFailed
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(plainTextPassword+authSvc.pepper))
 
 	if err != nil {
-		return model.User{}, err
+		return model.User{}, model.ErrAuthSvcAuthFailed
 	}
 
 	return user, nil
