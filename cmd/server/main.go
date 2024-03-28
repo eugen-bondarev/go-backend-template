@@ -4,6 +4,7 @@ import (
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/model"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 
@@ -52,24 +53,135 @@ func NewApp() (App, error) {
 	}, nil
 }
 
-type query struct{}
+type TestUser struct {
+	IDField        int32
+	FirstNameField string
+	LastNameField  string
+	RoleField      string
+}
 
-func (query) Hello() string {
-	return "hello, wordl"
+var users = []*TestUser{
+	{
+		IDField:        1,
+		FirstNameField: "Diana",
+		LastNameField:  "Shelest",
+		RoleField:      "wife",
+	},
+	{
+		IDField:        2,
+		FirstNameField: "Eugen",
+		LastNameField:  "Bondarev",
+		RoleField:      "admin",
+	},
+	{
+		IDField:        3,
+		FirstNameField: "Ostap",
+		LastNameField:  "Bondarev",
+		RoleField:      "brother",
+	},
+}
+
+type TestTodo struct {
+	Title  string
+	Done   bool
+	Author *TestUser
+}
+
+type resolver struct{}
+type query struct{}
+type mutation struct{}
+
+func (*resolver) Query() *query {
+	return &query{}
+}
+
+func (*resolver) Mutation() *mutation {
+	return &mutation{}
+}
+
+func (r *resolver) Users() []*TestUser {
+	return r.Query().Users()
+}
+
+func (r *resolver) CreateUser(args struct {
+	User struct {
+		FirstName string
+		LastName  string
+	}
+}) *bool {
+	users = append(users, &TestUser{
+		IDField:        rand.Int31n(10000),
+		FirstNameField: args.User.FirstName,
+		LastNameField:  args.User.LastName,
+		RoleField:      "user",
+	})
+	return nil
+}
+
+type TestUserResolver struct {
+	TestUser
+}
+
+func (u TestUser) ID() int32 {
+	return u.IDField
+}
+
+func (u TestUser) FirstName() string {
+	return u.FirstNameField
+}
+
+func (u TestUser) LastName() string {
+	return u.LastNameField
+}
+
+func (u TestUser) Role() string {
+	return u.RoleField
+}
+
+func (query) Users() []*TestUser {
+	return users
 }
 
 func main() {
 	s := `
+		type User {
+			ID: Int!
+			FirstName: String!
+			LastName: String!
+			Role: String!
+		}
+
 		type Query {
-			hello: String!
+			users: [User]!
+		}
+
+		type Mutation {
+			createUser(user: UserInput!): Boolean
+		}
+
+		input UserInput {
+			FirstName: String!
+			LastName: String!
 		}
 	`
-	schema := graphql.MustParseSchema(s, &query{})
+	schema := graphql.MustParseSchema(s, &resolver{})
 	// r := gin.Default()
 
-	http.Handle("/", &relay.Handler{Schema: schema})
+	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.ReadFile("./assets/html/apollo-graphql.html")
+
+		if err != nil {
+			return
+		}
+
+		w.WriteHeader(200)
+		w.Write(file)
+	}))
+
+	http.Handle("/graphql", &relay.Handler{Schema: schema})
 	log.Fatal(http.ListenAndServe(":4200", nil))
-	// r.GET("/query", &relay.Handler{Schema: schema})
+
+	// r.GET("/query", &relay.Handlk
 
 	// godotenv.Load()
 
