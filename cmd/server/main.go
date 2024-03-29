@@ -79,7 +79,7 @@ func (r *Resolver) Users() []dto.User {
 	}
 
 	return parallel.Map(users, func(user model.User) dto.User {
-		return dto.NewUser(int32(user.ID), user.Email, user.Role, func() int32 {
+		return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName, func() int32 {
 			fmt.Println("calculating expensive field..")
 			time.Sleep(time.Second)
 			return 42

@@ -15,6 +15,8 @@ func (userMapper *PGUserMapper) FromUser(user model.User) PGUser {
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
 		Role:         user.Role,
+		FirstName:    user.FirstName,
+		LastName:     user.LasName,
 	}
 }
 
@@ -24,5 +26,7 @@ func (userMapper *PGUserMapper) ToUser(pgUser PGUser) model.User {
 		Email:        pgUser.Email,
 		PasswordHash: pgUser.PasswordHash,
 		Role:         pgUser.Role,
+		FirstName:    pgUser.FirstName,
+		LasName:      pgUser.LastName,
 	}
 }
