@@ -56,21 +56,8 @@ func NewApp() (App, error) {
 	}, nil
 }
 
-type Query struct {
-	app *App
-}
-
-type Mutation struct {
-	app *App
-}
-
 type Resolver struct {
-	query    Query
-	mutation Mutation
-}
-
-func (r *Resolver) Users() []*dto.User {
-	return r.query.Users()
+	app *App
 }
 
 func (r *Resolver) CreateUser(args struct {
@@ -79,20 +66,19 @@ func (r *Resolver) CreateUser(args struct {
 		PasswordHash string
 	}
 }) *bool {
-	r.mutation.app.userRepo.CreateUser(args.User.Email, args.User.PasswordHash, "user")
+	r.app.userRepo.CreateUser(args.User.Email, args.User.PasswordHash, "user")
 	return nil
 }
 
-func (q *Query) Users() []*dto.User {
-	users, err := q.app.userRepo.GetUsers()
+func (r *Resolver) Users() []dto.User {
+	users, err := r.app.userRepo.GetUsers()
 
 	if err != nil {
-		return []*dto.User{}
+		return []dto.User{}
 	}
 
-	return parallel.Map(users, func(user model.User) *dto.User {
-		u := dto.NewUser(int32(user.ID), user.Email, user.Role)
-		return &u
+	return parallel.Map(users, func(user model.User) dto.User {
+		return dto.NewUser(int32(user.ID), user.Email, user.Role)
 	})
 }
 
@@ -116,12 +102,7 @@ func main() {
 	schema := graphql.MustParseSchema(
 		string(s),
 		&Resolver{
-			query: Query{
-				app: &app,
-			},
-			mutation: Mutation{
-				app: &app,
-			},
+			app: &app,
 		},
 		opts...,
 	)
