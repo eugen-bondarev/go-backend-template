@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"go-backend-template/internal/dto"
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/model"
 	"log"
@@ -54,74 +56,43 @@ func NewApp() (App, error) {
 	}, nil
 }
 
-type TestUser struct {
-	IDField    int32
-	EmailField string
-	RoleField  string
+type Query struct {
+	app *App
 }
 
-type TestTodo struct {
-	Title  string
-	Done   bool
-	Author *TestUser
+type Mutation struct {
+	app *App
 }
 
-type resolver struct{}
-type query struct{}
-type mutation struct{}
-
-func (*resolver) Query() *query {
-	return &query{}
+type Resolver struct {
+	query    Query
+	mutation Mutation
 }
 
-func (*resolver) Mutation() *mutation {
-	return &mutation{}
+func (r *Resolver) Users() []*dto.User {
+	return r.query.Users()
 }
 
-func (r *resolver) Users() []*TestUser {
-	return r.Query().Users()
-}
-
-func (r *resolver) CreateUser(args struct {
+func (r *Resolver) CreateUser(args struct {
 	User struct {
 		Email        string
 		PasswordHash string
 	}
 }) *bool {
-	globalApp.userRepo.CreateUser(args.User.Email, args.User.PasswordHash, "user")
+	r.mutation.app.userRepo.CreateUser(args.User.Email, args.User.PasswordHash, "user")
 	return nil
 }
 
-type TestUserResolver struct {
-	TestUser
-}
-
-func (u TestUser) ID() int32 {
-	return u.IDField
-}
-
-func (u TestUser) Email() string {
-	return u.EmailField
-}
-
-func (u TestUser) Role() string {
-	return u.RoleField
-}
-
-var globalApp *App
-
-func (query) Users() []*TestUser {
-	users, err := globalApp.userRepo.GetUsers()
+func (q *Query) Users() []*dto.User {
+	users, err := q.app.userRepo.GetUsers()
 
 	if err != nil {
-		return []*TestUser{}
+		return []*dto.User{}
 	}
 
-	return parallel.Map(users, func(user model.User) *TestUser {
-		return &TestUser{
-			IDField:    int32(user.ID),
-			EmailField: user.Email,
-		}
+	return parallel.Map(users, func(user model.User) *dto.User {
+		u := dto.NewUser(int32(user.ID), user.Email, user.Role)
+		return &u
 	})
 }
 
@@ -134,30 +105,26 @@ func main() {
 		panic(err.Error())
 	}
 
-	globalApp = &app
+	s, err := os.ReadFile("./assets/graphql/schema.graphql")
 
-	s := `
-		type User {
-			ID: Int!
-			Email: String!
-			Role: String!
-		}
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
-		type Query {
-			users: [User]!
-		}
-
-		type Mutation {
-			createUser(user: UserInput!): Boolean
-		}
-
-		input UserInput {
-			Email: String!
-			PasswordHash: String!
-		}
-	`
-	schema := graphql.MustParseSchema(s, &resolver{})
-	// r := gin.Default()
+	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers()}
+	schema := graphql.MustParseSchema(
+		string(s),
+		&Resolver{
+			query: Query{
+				app: &app,
+			},
+			mutation: Mutation{
+				app: &app,
+			},
+		},
+		opts...,
+	)
 
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := os.ReadFile("./assets/html/apollo-graphql.html")
