@@ -16,6 +16,7 @@ import (
 type App struct {
 	userRepo   model.UserRepo
 	signingSvc model.SigningSvc
+	mailerSvc  model.MailerSvc
 	authSvc    model.AuthSvc
 	policies   impl.Policies
 }
@@ -39,6 +40,12 @@ func NewApp() (App, error) {
 	}
 
 	userRepo := impl.NewPGUserRepo(&pg)
+	mailerSvc := impl.NewSMTPMailerSvc(
+		os.Getenv("SMTP_USERNAME"),
+		os.Getenv("SMTP_PASSWORD"),
+		os.Getenv("SMTP_HOST"),
+		os.Getenv("SMTP_PORT"),
+	)
 	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
 	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
 
@@ -49,6 +56,7 @@ func NewApp() (App, error) {
 	return App{
 		userRepo:   userRepo,
 		signingSvc: signingSvc,
+		mailerSvc:  mailerSvc,
 		authSvc:    authSvc,
 		policies:   policies,
 	}, nil
@@ -135,6 +143,29 @@ func main() {
 			}
 
 			return nil, app.register(payload.Email, payload.Password)
+		}),
+	)
+
+	auth.POST(
+		"/forgot-password",
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			payload, err := util.GinGetBody[struct {
+				dto.WithEmail
+			}](ctx)
+
+			if err != nil {
+				return nil, err
+			}
+
+			mail := model.NewMailBuilder(
+				payload.Email,
+				"So you want to reset your password?",
+			)
+
+			err = app.mailerSvc.Send(mail)
+
+			return nil, err
+
 		}),
 	)
 

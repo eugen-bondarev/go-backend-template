@@ -6,7 +6,7 @@ import (
 	"net/smtp"
 )
 
-type SMTPMailer struct {
+type SMTPMailerSvc struct {
 	username string
 	password string
 	host     string
@@ -14,10 +14,10 @@ type SMTPMailer struct {
 	auth     smtp.Auth
 }
 
-func NewSMTPMailer(username, password, host, port string) model.Mailer {
+func NewSMTPMailerSvc(username, password, host, port string) model.MailerSvc {
 	auth := smtp.PlainAuth("", username, password, host)
 
-	return &SMTPMailer{
+	return &SMTPMailerSvc{
 		username: username,
 		password: password,
 		host:     host,
@@ -26,7 +26,7 @@ func NewSMTPMailer(username, password, host, port string) model.Mailer {
 	}
 }
 
-func (m *SMTPMailer) Send(b *model.MailBuilder) error {
+func (m *SMTPMailerSvc) Send(b *model.MailBuilder) error {
 	receivers, content := b.Build()
 	fmt.Println(content)
 	return smtp.SendMail(m.host+":"+m.port, m.auth, m.username, receivers, []byte(content))

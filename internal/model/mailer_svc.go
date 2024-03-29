@@ -2,7 +2,7 @@ package model
 
 import "fmt"
 
-type Mailer interface {
+type MailerSvc interface {
 	Send(builder *MailBuilder) error
 }
 
