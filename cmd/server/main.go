@@ -85,6 +85,30 @@ func (r *Resolver) Users() []dto.User {
 	})
 }
 
+func (r *Resolver) Task(args struct{ ID int32 }) *dto.Task {
+	task, err := r.app.taskRepo.GetTaskByID(int(args.ID))
+
+	if err != nil {
+		return nil
+	}
+
+	output := dto.TaskFromModel(
+		task,
+		dto.TaskResolvers{
+			GetAuthor: func() dto.User {
+				user, err := r.app.userRepo.GetUserByID(task.AuthorID)
+
+				if err != nil {
+					return dto.User{}
+				}
+
+				return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName)
+			},
+		},
+	)
+	return &output
+}
+
 func (r *Resolver) Tasks() []dto.Task {
 	tasks, err := r.app.taskRepo.GetTasks()
 
@@ -93,13 +117,20 @@ func (r *Resolver) Tasks() []dto.Task {
 	}
 
 	return parallel.Map(tasks, func(task model.Task) dto.Task {
-		return dto.NewTask(int32(task.ID), task.Title, int32(task.Status), func() dto.User {
-			user, err := r.app.userRepo.GetUserByID(task.AuthorID)
-			if err != nil {
-				return dto.User{}
-			}
-			return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName)
-		})
+		return dto.TaskFromModel(
+			task,
+			dto.TaskResolvers{
+				GetAuthor: func() dto.User {
+					user, err := r.app.userRepo.GetUserByID(task.AuthorID)
+
+					if err != nil {
+						return dto.User{}
+					}
+
+					return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName)
+				},
+			},
+		)
 	})
 }
 

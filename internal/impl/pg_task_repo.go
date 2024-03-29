@@ -28,6 +28,22 @@ func (taskRepo *PGTaskRepo) GetTasks() ([]model.Task, error) {
 	return parallel.Map(tasks, taskRepo.taskMapper.ToTask), nil
 }
 
+func (taskRepo *PGTaskRepo) GetTaskByID(id int) (model.Task, error) {
+	var tasks []PGTask
+
+	err := taskRepo.pg.GetDB().Select(&tasks, "SELECT * FROM tasks WHERE id = $1", id)
+
+	if err != nil {
+		return model.Task{}, err
+	}
+
+	if len(tasks) == 0 {
+		return model.Task{}, errors.New("task not found")
+	}
+
+	return taskRepo.taskMapper.ToTask(tasks[0]), nil
+}
+
 func NewPGTaskRepo(pg *Postgres) model.TaskRepo {
 	return &PGTaskRepo{
 		pg:         pg,

@@ -1,21 +1,27 @@
 package dto
 
+import "go-backend-template/internal/model"
+
+type TaskResolvers struct {
+	GetAuthor func() User
+}
+
 type Task struct {
 	ID        int32
 	Title     string
 	Status    int32
-	getAuthor func() User
+	resolvers TaskResolvers
 }
 
-func NewTask(id int32, title string, status int32, getAuthor func() User) Task {
+func TaskFromModel(m model.Task, resolvers TaskResolvers) Task {
 	return Task{
-		ID:        id,
-		Title:     title,
-		Status:    status,
-		getAuthor: getAuthor,
+		ID:        int32(m.ID),
+		Title:     m.Title,
+		Status:    int32(m.Status),
+		resolvers: resolvers,
 	}
 }
 
 func (t Task) Author() User {
-	return t.getAuthor()
+	return t.resolvers.GetAuthor()
 }
