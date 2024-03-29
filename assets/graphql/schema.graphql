@@ -4,11 +4,18 @@ type User {
   role: String!
   firstName: String!
   lastName: String!
-  expensiveField: Int!
+}
+
+type Task {
+  id: Int!
+  title: String!
+  status: Int!
+  author: User!
 }
 
 type Query {
   users: [User!]!
+  tasks: [Task!]!
 }
 
 type Mutation {

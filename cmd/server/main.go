@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/eugen-bondarev/go-slice-helpers/parallel"
 	"github.com/graph-gophers/graphql-go"
@@ -18,6 +17,7 @@ import (
 
 type App struct {
 	userRepo   model.UserRepo
+	taskRepo   model.TaskRepo
 	signingSvc model.SigningSvc
 	authSvc    model.AuthSvc
 	policies   impl.Policies
@@ -42,6 +42,7 @@ func NewApp() (App, error) {
 	}
 
 	userRepo := impl.NewPGUserRepo(&pg)
+	taskRepo := impl.NewPGTaskRepo(&pg)
 	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
 	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
 
@@ -51,6 +52,7 @@ func NewApp() (App, error) {
 
 	return App{
 		userRepo:   userRepo,
+		taskRepo:   taskRepo,
 		signingSvc: signingSvc,
 		authSvc:    authSvc,
 		policies:   policies,
@@ -79,10 +81,24 @@ func (r *Resolver) Users() []dto.User {
 	}
 
 	return parallel.Map(users, func(user model.User) dto.User {
-		return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName, func() int32 {
-			fmt.Println("calculating expensive field..")
-			time.Sleep(time.Second)
-			return 42
+		return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName)
+	})
+}
+
+func (r *Resolver) Tasks() []dto.Task {
+	tasks, err := r.app.taskRepo.GetTasks()
+
+	if err != nil {
+		return []dto.Task{}
+	}
+
+	return parallel.Map(tasks, func(task model.Task) dto.Task {
+		return dto.NewTask(int32(task.ID), task.Title, int32(task.Status), func() dto.User {
+			user, err := r.app.userRepo.GetUserByID(task.AuthorID)
+			if err != nil {
+				return dto.User{}
+			}
+			return dto.NewUser(int32(user.ID), user.Email, user.Role, user.FirstName, user.LasName)
 		})
 	})
 }
@@ -91,6 +107,7 @@ func main() {
 	godotenv.Load()
 
 	app, err := NewApp()
+	fmt.Println(app.taskRepo.GetTasks())
 
 	if err != nil {
 		panic(err.Error())
