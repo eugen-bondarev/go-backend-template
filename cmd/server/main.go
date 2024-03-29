@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/eugen-bondarev/go-slice-helpers/parallel"
 	"github.com/graph-gophers/graphql-go"
@@ -78,7 +79,11 @@ func (r *Resolver) Users() []dto.User {
 	}
 
 	return parallel.Map(users, func(user model.User) dto.User {
-		return dto.NewUser(int32(user.ID), user.Email, user.Role)
+		return dto.NewUser(int32(user.ID), user.Email, user.Role, func() int32 {
+			fmt.Println("calculating expensive field..")
+			time.Sleep(time.Second)
+			return 42
+		})
 	})
 }
 

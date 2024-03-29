@@ -2,6 +2,7 @@ type User {
   id: Int!
   email: String!
   role: String!
+  expensiveField: Int!
 }
 
 type Query {
