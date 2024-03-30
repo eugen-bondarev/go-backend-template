@@ -4,13 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"go-backend-template/internal/model"
+	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/mitchellh/mapstructure"
 )
-
-const invalidID = -1
-const invalidToken = ""
 
 type JWTSigningSvc struct {
 	secret string
@@ -22,22 +19,15 @@ func NewJWTSigningSvc(secret string) model.SigningSvc {
 	}
 }
 
-type tokenBody struct {
-	ID   int    `json:"id"`
-	Role string `json:"role"`
-}
-
-func (signingSvc *JWTSigningSvc) Sign(ID int, role string) (string, error) {
+func (signingSvc *JWTSigningSvc) Sign(data map[string]any) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"tokenBody": tokenBody{
-			ID:   ID,
-			Role: role,
-		},
+		"exp":  time.Now().Add(time.Hour).Unix(),
+		"data": data,
 	})
 	return token.SignedString([]byte(signingSvc.secret))
 }
 
-func (signingSvc *JWTSigningSvc) Parse(tokenString string) (int, string, error) {
+func (signingSvc *JWTSigningSvc) Parse(tokenString string) (map[string]any, error) {
 	parsedToken, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -47,16 +37,14 @@ func (signingSvc *JWTSigningSvc) Parse(tokenString string) (int, string, error) 
 	})
 
 	if err != nil {
-		return invalidID, invalidToken, err
+		return map[string]any{}, nil
 	}
 
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok {
-		tb := struct {
-			TokenBody tokenBody `json:"tokenBody"`
-		}{}
-		mapstructure.Decode(claims, &tb)
-		return tb.TokenBody.ID, tb.TokenBody.Role, nil
+		if data, ok := claims["data"].(map[string]any); ok {
+			return data, nil
+		}
 	}
 
-	return invalidID, invalidToken, errors.New("failed to validate token")
+	return map[string]any{}, errors.New("failed to validate token")
 }

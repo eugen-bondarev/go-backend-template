@@ -1,6 +1,6 @@
 package model
 
 type SigningSvc interface {
-	Sign(ID int, role string) (string, error)
-	Parse(string) (int, string, error)
+	Sign(map[string]any) (string, error)
+	Parse(string) (map[string]any, error)
 }

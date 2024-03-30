@@ -32,8 +32,12 @@ func (m *GinMiddleware) getRoleFromHeader() string {
 		return ""
 	}
 
-	_, role, _ := m.signingSvc.Parse(components[1])
-	return role
+	data, _ := m.signingSvc.Parse(components[1])
+
+	if role, ok := data["role"]; ok {
+		return role.(string)
+	}
+	return ""
 }
 
 func (m *GinMiddleware) SetRole() {
