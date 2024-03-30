@@ -41,6 +41,23 @@ func (signingSvc *JWTSigningSvc) Parse(tokenString string) (map[string]any, erro
 	}
 
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok {
+		exp, ok := claims["exp"]
+
+		if !ok {
+			return map[string]any{}, errors.New("failed to extract expiration time 1")
+		}
+
+		expNum, ok := exp.(int64)
+
+		if !ok {
+			fmt.Println(exp)
+			return map[string]any{}, errors.New("failed to extract expiration time 2")
+		}
+
+		if time.Now().Unix() < expNum {
+			return map[string]any{}, errors.New("token is expired")
+		}
+
 		if data, ok := claims["data"].(map[string]any); ok {
 			return data, nil
 		}
