@@ -14,10 +14,7 @@ func (app *App) login(email, plainTextPassword string) (string, error) {
 		return "", err
 	}
 
-	token, err := app.signingSvc.Sign(map[string]any{
-		"ID":   user.ID,
-		"role": user.Role,
-	})
+	token, err := app.userDataSigningSvc.Sign(user.ID, user.Role)
 
 	return token, err
 }

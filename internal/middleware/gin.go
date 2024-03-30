@@ -9,14 +9,14 @@ import (
 )
 
 type GinMiddleware struct {
-	ctx        *gin.Context
-	signingSvc model.SigningSvc
+	ctx                *gin.Context
+	userDataSigningSvc *model.UserDataSigningSvc
 }
 
-func NewGinMiddleware(ctx *gin.Context, signingSvc model.SigningSvc) Middleware {
+func NewGinMiddleware(ctx *gin.Context, userDataSigningSvc *model.UserDataSigningSvc) Middleware {
 	return &GinMiddleware{
-		ctx:        ctx,
-		signingSvc: signingSvc,
+		ctx:                ctx,
+		userDataSigningSvc: userDataSigningSvc,
 	}
 }
 
@@ -32,12 +32,9 @@ func (m *GinMiddleware) getRoleFromHeader() string {
 		return ""
 	}
 
-	data, _ := m.signingSvc.Parse(components[1])
+	_, role, _ := m.userDataSigningSvc.Parse(components[1])
 
-	if role, ok := data["role"]; ok {
-		return role.(string)
-	}
-	return ""
+	return role
 }
 
 func (m *GinMiddleware) SetRole() {
@@ -56,20 +53,20 @@ func (m *GinMiddleware) Abort() {
 }
 
 type GinMiddlewareFactory struct {
-	signingSvc model.SigningSvc
-	policies   *impl.Policies
+	userDataSigningSvc model.UserDataSigningSvc
+	policies           *impl.Policies
 }
 
-func NewGinMiddlewareFactory(signingSvc model.SigningSvc, policies *impl.Policies) GinMiddlewareFactory {
+func NewGinMiddlewareFactory(userDataSigningSvc model.UserDataSigningSvc, policies *impl.Policies) GinMiddlewareFactory {
 	return GinMiddlewareFactory{
-		signingSvc: signingSvc,
-		policies:   policies,
+		userDataSigningSvc: userDataSigningSvc,
+		policies:           policies,
 	}
 }
 
 func (factory *GinMiddlewareFactory) SetRole() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		m := NewGinMiddleware(ctx, factory.signingSvc)
+		m := NewGinMiddleware(ctx, &factory.userDataSigningSvc)
 		m.SetRole()
 	}
 }

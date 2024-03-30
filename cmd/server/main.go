@@ -14,11 +14,12 @@ import (
 )
 
 type App struct {
-	userRepo   model.UserRepo
-	signingSvc model.SigningSvc
-	mailerSvc  model.MailerSvc
-	authSvc    model.AuthSvc
-	policies   impl.Policies
+	signingSvc         model.SigningSvc
+	userRepo           model.UserRepo
+	userDataSigningSvc model.UserDataSigningSvc
+	mailerSvc          model.MailerSvc
+	authSvc            model.AuthSvc
+	policies           impl.Policies
 }
 
 func NewApp() (App, error) {
@@ -48,17 +49,19 @@ func NewApp() (App, error) {
 	)
 	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
 	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
+	userDataSigningSvc := model.NewUserDataSigningSvc(signingSvc)
 
 	policies := impl.NewPolicies()
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
 
 	return App{
-		userRepo:   userRepo,
-		signingSvc: signingSvc,
-		mailerSvc:  mailerSvc,
-		authSvc:    authSvc,
-		policies:   policies,
+		signingSvc:         signingSvc,
+		userRepo:           userRepo,
+		userDataSigningSvc: userDataSigningSvc,
+		mailerSvc:          mailerSvc,
+		authSvc:            authSvc,
+		policies:           policies,
 	}, nil
 }
 
@@ -76,7 +79,7 @@ func main() {
 	}
 
 	mw := middleware.NewGinMiddlewareFactory(
-		app.signingSvc,
+		app.userDataSigningSvc,
 		&app.policies,
 	)
 
