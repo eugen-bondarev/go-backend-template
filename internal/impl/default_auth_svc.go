@@ -36,6 +36,20 @@ func (authSvc *DefaultAuthSvc) CreateUser(email, plainTextPassword, role string)
 	return nil
 }
 
+func (authSvc *DefaultAuthSvc) SetPasswordByEmail(email, plainTextPassword string) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(plainTextPassword+authSvc.pepper), bcrypt.DefaultCost)
+
+	if err != nil {
+		return model.ErrAuthSvcCreateUserFailed
+	}
+
+	encryptedPass := string(bytes)
+
+	err = authSvc.userRepo.SetPasswordHashByEmail(email, encryptedPass)
+
+	return err
+}
+
 func (authSvc *DefaultAuthSvc) AuthenticateUser(email, plainTextPassword string) (model.User, error) {
 	user, err := authSvc.userRepo.GetUserByEmail(email)
 

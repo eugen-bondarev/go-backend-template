@@ -14,12 +14,13 @@ import (
 )
 
 type App struct {
-	signingSvc         model.SigningSvc
-	userRepo           model.UserRepo
-	userDataSigningSvc model.UserDataSigningSvc
-	mailerSvc          model.MailerSvc
-	authSvc            model.AuthSvc
-	policies           impl.Policies
+	signingSvc           model.SigningSvc
+	userRepo             model.UserRepo
+	userDataSigningSvc   model.UserDataSigningSvc
+	forgotPassSigningSvc model.ForgotPassSigningSvc
+	mailerSvc            model.MailerSvc
+	authSvc              model.AuthSvc
+	policies             impl.Policies
 }
 
 func NewApp() (App, error) {
@@ -50,18 +51,20 @@ func NewApp() (App, error) {
 	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
 	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
 	userDataSigningSvc := model.NewUserDataSigningSvc(signingSvc)
+	forgotPassSigningSvc := model.NewForgotPassSigningSvc(signingSvc)
 
 	policies := impl.NewPolicies()
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
 
 	return App{
-		signingSvc:         signingSvc,
-		userRepo:           userRepo,
-		userDataSigningSvc: userDataSigningSvc,
-		mailerSvc:          mailerSvc,
-		authSvc:            authSvc,
-		policies:           policies,
+		signingSvc:           signingSvc,
+		userRepo:             userRepo,
+		userDataSigningSvc:   userDataSigningSvc,
+		forgotPassSigningSvc: forgotPassSigningSvc,
+		mailerSvc:            mailerSvc,
+		authSvc:              authSvc,
+		policies:             policies,
 	}, nil
 }
 
@@ -150,6 +153,30 @@ func main() {
 	)
 
 	auth.POST(
+		"/reset-password",
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			payload, err := util.GinGetBody[struct {
+				dto.WithToken
+				dto.WithPassword
+			}](ctx)
+
+			if err != nil {
+				return nil, err
+			}
+
+			email, err := app.forgotPassSigningSvc.Parse(payload.Token)
+
+			if err != nil {
+				return nil, err
+			}
+
+			err = app.authSvc.SetPasswordByEmail(email, payload.Password)
+
+			return nil, err
+		}),
+	)
+
+	auth.POST(
 		"/forgot-password",
 		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
 			payload, err := util.GinGetBody[struct {
@@ -160,9 +187,16 @@ func main() {
 				return nil, err
 			}
 
+			token, err := app.forgotPassSigningSvc.Sign(payload.Email)
+
+			if err != nil {
+				return nil, err
+			}
+
 			mail := model.NewMailBuilder(
 				payload.Email,
-				"So you want to reset your password?",
+				"So you want to reset your password?\n"+
+					"Your token is: "+token,
 			)
 
 			err = app.mailerSvc.Send(mail)

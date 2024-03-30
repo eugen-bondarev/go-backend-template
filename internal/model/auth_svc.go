@@ -17,5 +17,6 @@ var (
 
 type AuthSvc interface {
 	CreateUser(email, plainTextPassword, role string) error
+	SetPasswordByEmail(email, plainTextPassword string) error
 	AuthenticateUser(email, plainTextPassword string) (User, error)
 }

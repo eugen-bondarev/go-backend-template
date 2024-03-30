@@ -49,6 +49,11 @@ func (userRepo *PGUserRepo) CreateUser(email, passwordHash, role string) error {
 	return err
 }
 
+func (userRepo *PGUserRepo) SetPasswordHashByEmail(email, passwordHash string) error {
+	_, err := userRepo.pg.GetDB().Exec("UPDATE users SET password_hash = $1 WHERE email = $2", passwordHash, email)
+	return err
+}
+
 func (userRepo *PGUserRepo) DeleteUserByID(id int) error {
 	_, err := userRepo.pg.GetDB().Exec("DELETE FROM users WHERE id = $1", id)
 	return err
