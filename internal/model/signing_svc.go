@@ -1,6 +1,8 @@
 package model
 
+import "time"
+
 type SigningSvc interface {
-	Sign(map[string]any) (string, error)
-	Parse(string) (map[string]any, error)
+	Sign(claims map[string]any, expiration time.Time) (string, error)
+	Parse(token string) (map[string]any, error)
 }

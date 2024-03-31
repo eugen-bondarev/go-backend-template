@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type UserDataSigningSvc struct {
 	signingSvc SigningSvc
 }
@@ -14,7 +16,7 @@ func (s *UserDataSigningSvc) Sign(ID int, role string) (string, error) {
 	return s.signingSvc.Sign(map[string]any{
 		"ID":   ID,
 		"role": role,
-	})
+	}, time.Now().Add(time.Hour))
 }
 
 func (s *UserDataSigningSvc) Parse(token string) (int, string, error) {

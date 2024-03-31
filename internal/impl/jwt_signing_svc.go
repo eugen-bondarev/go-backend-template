@@ -19,9 +19,9 @@ func NewJWTSigningSvc(secret string) model.SigningSvc {
 	}
 }
 
-func (signingSvc *JWTSigningSvc) Sign(data map[string]any) (string, error) {
+func (signingSvc *JWTSigningSvc) Sign(data map[string]any, expiration time.Time) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp":  time.Now().Add(time.Hour).Unix(),
+		"exp":  expiration.Unix(),
 		"data": data,
 	})
 	return token.SignedString([]byte(signingSvc.secret))

@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type ForgotPassSigningSvc struct {
 	signingSvc SigningSvc
@@ -15,7 +18,7 @@ func NewForgotPassSigningSvc(signingSvc SigningSvc) ForgotPassSigningSvc {
 func (s *ForgotPassSigningSvc) Sign(email string) (string, error) {
 	return s.signingSvc.Sign(map[string]any{
 		"email": email,
-	})
+	}, time.Now().Add(time.Hour))
 }
 
 func (s *ForgotPassSigningSvc) Parse(token string) (string, error) {
