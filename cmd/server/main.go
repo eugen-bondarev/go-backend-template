@@ -121,6 +121,33 @@ func main() {
 	auth := v1.Group("/auth")
 
 	auth.POST(
+		"/refresh",
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			payload, err := util.GinGetBody[struct {
+				dto.WithRefreshToken
+			}](ctx)
+
+			if err != nil {
+				return nil, err
+			}
+
+			token, refreshToken, err := app.refreshToken(payload.RefreshToken)
+
+			if err != nil {
+				return nil, err
+			}
+
+			return struct {
+				Token        string `json:"token"`
+				RefreshToken string `json:"refreshToken"`
+			}{
+				Token:        token,
+				RefreshToken: refreshToken,
+			}, nil
+		}),
+	)
+
+	auth.POST(
 		"/login",
 		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
 			payload, err := util.GinGetBody[struct {
@@ -132,7 +159,19 @@ func main() {
 				return nil, err
 			}
 
-			return app.login(payload.Email, payload.Password)
+			token, refreshToken, err := app.login(payload.Email, payload.Password)
+
+			if err != nil {
+				return nil, err
+			}
+
+			return struct {
+				Token        string `json:"token"`
+				RefreshToken string `json:"refreshToken"`
+			}{
+				Token:        token,
+				RefreshToken: refreshToken,
+			}, nil
 		}),
 	)
 

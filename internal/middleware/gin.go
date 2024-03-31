@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"go-backend-template/internal/impl"
 	"go-backend-template/internal/model"
 	"strings"
@@ -33,9 +32,7 @@ func (m *GinMiddleware) getRoleFromHeader() string {
 		return ""
 	}
 
-	_, role, err := m.userDataSigningSvc.Parse(components[1])
-
-	fmt.Println(err)
+	_, role, _ := m.userDataSigningSvc.ParseSessionToken(components[1])
 
 	return role
 }
