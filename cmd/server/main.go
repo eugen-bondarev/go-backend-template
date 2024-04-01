@@ -209,9 +209,7 @@ func main() {
 				return nil, err
 			}
 
-			err = app.authSvc.SetPasswordByEmail(email, payload.Password)
-
-			return nil, err
+			return nil, app.authSvc.SetPasswordByEmail(email, payload.Password)
 		}),
 	)
 
@@ -238,10 +236,7 @@ func main() {
 					"Your token is: "+token,
 			)
 
-			err = app.mailerSvc.Send(mail)
-
-			return nil, err
-
+			return nil, app.mailerSvc.Send(mail)
 		}),
 	)
 
