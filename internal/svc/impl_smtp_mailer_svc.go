@@ -1,8 +1,7 @@
-package impl
+package svc
 
 import (
 	"fmt"
-	"go-backend-template/internal/model"
 	"net/smtp"
 )
 
@@ -14,7 +13,7 @@ type SMTPMailerSvc struct {
 	auth     smtp.Auth
 }
 
-func NewSMTPMailerSvc(username, password, host, port string) model.MailerSvc {
+func NewSMTPMailerSvc(username, password, host, port string) IMailerSvc {
 	auth := smtp.PlainAuth("", username, password, host)
 
 	return &SMTPMailerSvc{
@@ -26,7 +25,7 @@ func NewSMTPMailerSvc(username, password, host, port string) model.MailerSvc {
 	}
 }
 
-func (m *SMTPMailerSvc) Send(b *model.MailBuilder) error {
+func (m *SMTPMailerSvc) Send(b *MailBuilder) error {
 	receivers, content := b.Build()
 	fmt.Println(content)
 	return smtp.SendMail(m.host+":"+m.port, m.auth, m.username, receivers, []byte(content))

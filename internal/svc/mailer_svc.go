@@ -1,8 +1,8 @@
-package model
+package svc
 
 import "fmt"
 
-type MailerSvc interface {
+type IMailerSvc interface {
 	Send(builder *MailBuilder) error
 }
 

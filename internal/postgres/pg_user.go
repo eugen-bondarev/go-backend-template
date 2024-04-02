@@ -1,4 +1,4 @@
-package impl
+package postgres
 
 type PGUser struct {
 	ID           int    `db:"id"`

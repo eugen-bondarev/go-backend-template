@@ -1,25 +1,25 @@
-package model
+package svc
 
 import (
 	"errors"
 	"time"
 )
 
-type UserDataSigningSvc struct {
-	signingSvc             SigningSvc
+type IUserDataSigningSvc struct {
+	signingSvc             ISigningSvc
 	sessionTokenExpiration time.Duration
 	refreshTokenExpiration time.Duration
 }
 
-func NewUserDataSigningSvc(signingSvc SigningSvc) UserDataSigningSvc {
-	return UserDataSigningSvc{
+func NewUserDataSigningSvc(signingSvc ISigningSvc) IUserDataSigningSvc {
+	return IUserDataSigningSvc{
 		signingSvc:             signingSvc,
 		sessionTokenExpiration: time.Minute * 2,
 		refreshTokenExpiration: time.Minute * 30,
 	}
 }
 
-func (s *UserDataSigningSvc) SignSessionToken(ID int, role string) (string, error) {
+func (s *IUserDataSigningSvc) SignSessionToken(ID int, role string) (string, error) {
 	token, err := s.signingSvc.Sign(
 		map[string]any{
 			"ID":   ID,
@@ -35,7 +35,7 @@ func (s *UserDataSigningSvc) SignSessionToken(ID int, role string) (string, erro
 	return token, nil
 }
 
-func (s *UserDataSigningSvc) ParseSessionToken(token string) (int, string, error) {
+func (s *IUserDataSigningSvc) ParseSessionToken(token string) (int, string, error) {
 	data, err := s.signingSvc.Parse(token)
 
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *UserDataSigningSvc) ParseSessionToken(token string) (int, string, error
 	return int(ID), role, nil
 }
 
-func (s *UserDataSigningSvc) SignRefreshToken(ID int) (string, error) {
+func (s *IUserDataSigningSvc) SignRefreshToken(ID int) (string, error) {
 	refreshToken, err := s.signingSvc.Sign(
 		map[string]any{
 			"ID": ID,
@@ -68,7 +68,7 @@ func (s *UserDataSigningSvc) SignRefreshToken(ID int) (string, error) {
 	return refreshToken, err
 }
 
-func (s *UserDataSigningSvc) ParseRefreshToken(token string) (int, error) {
+func (s *IUserDataSigningSvc) ParseRefreshToken(token string) (int, error) {
 	data, err := s.signingSvc.Parse(token)
 
 	if err != nil {

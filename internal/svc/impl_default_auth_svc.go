@@ -1,17 +1,18 @@
-package impl
+package svc
 
 import (
 	"go-backend-template/internal/model"
+	"go-backend-template/internal/repo"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type DefaultAuthSvc struct {
-	userRepo model.UserRepo
+	userRepo repo.IUserRepo
 	pepper   string
 }
 
-func NewDefaultAuthSvc(userRepo model.UserRepo, pepper string) model.AuthSvc {
+func NewDefaultAuthSvc(userRepo repo.IUserRepo, pepper string) IAuthSvc {
 	return &DefaultAuthSvc{
 		userRepo: userRepo,
 		pepper:   pepper,
@@ -22,7 +23,7 @@ func (authSvc *DefaultAuthSvc) CreateUser(email, plainTextPassword, role string)
 	bytes, err := bcrypt.GenerateFromPassword([]byte(plainTextPassword+authSvc.pepper), bcrypt.DefaultCost)
 
 	if err != nil {
-		return model.ErrAuthSvcCreateUserFailed
+		return ErrAuthSvcCreateUserFailed
 	}
 
 	encryptedPass := string(bytes)
@@ -30,7 +31,7 @@ func (authSvc *DefaultAuthSvc) CreateUser(email, plainTextPassword, role string)
 	err = authSvc.userRepo.CreateUser(email, encryptedPass, role)
 
 	if err != nil {
-		return model.ErrAuthSvcCreateUserFailed
+		return ErrAuthSvcCreateUserFailed
 	}
 
 	return nil
@@ -40,7 +41,7 @@ func (authSvc *DefaultAuthSvc) SetPasswordByEmail(email, plainTextPassword strin
 	bytes, err := bcrypt.GenerateFromPassword([]byte(plainTextPassword+authSvc.pepper), bcrypt.DefaultCost)
 
 	if err != nil {
-		return model.ErrAuthSvcCreateUserFailed
+		return ErrAuthSvcCreateUserFailed
 	}
 
 	encryptedPass := string(bytes)
@@ -54,13 +55,13 @@ func (authSvc *DefaultAuthSvc) AuthenticateUser(email, plainTextPassword string)
 	user, err := authSvc.userRepo.GetUserByEmail(email)
 
 	if err != nil {
-		return model.User{}, model.ErrAuthSvcAuthFailed
+		return model.User{}, ErrAuthSvcAuthFailed
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(plainTextPassword+authSvc.pepper))
 
 	if err != nil {
-		return model.User{}, model.ErrAuthSvcAuthFailed
+		return model.User{}, ErrAuthSvcAuthFailed
 	}
 
 	return user, nil

@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"go-backend-template/internal/impl"
-	"go-backend-template/internal/model"
+	"go-backend-template/internal/permissions"
+	"go-backend-template/internal/svc"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -10,10 +10,10 @@ import (
 
 type GinMiddleware struct {
 	ctx                *gin.Context
-	userDataSigningSvc *model.UserDataSigningSvc
+	userDataSigningSvc *svc.IUserDataSigningSvc
 }
 
-func NewGinMiddleware(ctx *gin.Context, userDataSigningSvc *model.UserDataSigningSvc) Middleware {
+func NewGinMiddleware(ctx *gin.Context, userDataSigningSvc *svc.IUserDataSigningSvc) Middleware {
 	return &GinMiddleware{
 		ctx:                ctx,
 		userDataSigningSvc: userDataSigningSvc,
@@ -53,11 +53,11 @@ func (m *GinMiddleware) Abort() {
 }
 
 type GinMiddlewareFactory struct {
-	userDataSigningSvc model.UserDataSigningSvc
-	policies           *impl.Policies
+	userDataSigningSvc svc.IUserDataSigningSvc
+	policies           *permissions.Policies
 }
 
-func NewGinMiddlewareFactory(userDataSigningSvc model.UserDataSigningSvc, policies *impl.Policies) GinMiddlewareFactory {
+func NewGinMiddlewareFactory(userDataSigningSvc svc.IUserDataSigningSvc, policies *permissions.Policies) GinMiddlewareFactory {
 	return GinMiddlewareFactory{
 		userDataSigningSvc: userDataSigningSvc,
 		policies:           policies,

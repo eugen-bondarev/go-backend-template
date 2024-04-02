@@ -1,9 +1,8 @@
-package impl
+package svc
 
 import (
 	"errors"
 	"fmt"
-	"go-backend-template/internal/model"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -13,7 +12,7 @@ type JWTSigningSvc struct {
 	secret string
 }
 
-func NewJWTSigningSvc(secret string) model.SigningSvc {
+func NewJWTSigningSvc(secret string) ISigningSvc {
 	return &JWTSigningSvc{
 		secret: secret,
 	}

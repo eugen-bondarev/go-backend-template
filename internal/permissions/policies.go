@@ -1,4 +1,4 @@
-package impl
+package permissions
 
 type Policy struct {
 	Object  string

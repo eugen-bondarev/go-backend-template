@@ -2,9 +2,11 @@ package main
 
 import (
 	"go-backend-template/internal/dto"
-	"go-backend-template/internal/impl"
 	"go-backend-template/internal/middleware"
-	"go-backend-template/internal/model"
+	"go-backend-template/internal/permissions"
+	"go-backend-template/internal/postgres"
+	"go-backend-template/internal/repo"
+	"go-backend-template/internal/svc"
 	"go-backend-template/internal/util"
 	"os"
 	"strconv"
@@ -14,17 +16,17 @@ import (
 )
 
 type App struct {
-	signingSvc           model.SigningSvc
-	userRepo             model.UserRepo
-	userDataSigningSvc   model.UserDataSigningSvc
-	forgotPassSigningSvc model.ForgotPassSigningSvc
-	mailerSvc            model.MailerSvc
-	authSvc              model.AuthSvc
-	policies             impl.Policies
+	signingSvc           svc.ISigningSvc
+	userRepo             repo.IUserRepo
+	userDataSigningSvc   svc.IUserDataSigningSvc
+	forgotPassSigningSvc svc.ForgotPassSigningSvc
+	mailerSvc            svc.IMailerSvc
+	authSvc              svc.IAuthSvc
+	policies             permissions.Policies
 }
 
 func NewApp() (App, error) {
-	pg, err := impl.NewPostgres(
+	pg, err := postgres.NewPostgres(
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASS"),
@@ -41,19 +43,19 @@ func NewApp() (App, error) {
 		return App{}, err
 	}
 
-	userRepo := impl.NewPGUserRepo(&pg)
-	mailerSvc := impl.NewSMTPMailerSvc(
+	userRepo := repo.NewPGUserRepo(&pg)
+	mailerSvc := svc.NewSMTPMailerSvc(
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 		os.Getenv("SMTP_HOST"),
 		os.Getenv("SMTP_PORT"),
 	)
-	authSvc := impl.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
-	signingSvc := impl.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
-	userDataSigningSvc := model.NewUserDataSigningSvc(signingSvc)
-	forgotPassSigningSvc := model.NewForgotPassSigningSvc(signingSvc)
+	authSvc := svc.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
+	signingSvc := svc.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
+	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc)
+	forgotPassSigningSvc := svc.NewForgotPassSigningSvc(signingSvc)
 
-	policies := impl.NewPolicies()
+	policies := permissions.NewPolicies()
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
 
@@ -230,7 +232,7 @@ func main() {
 				return nil, err
 			}
 
-			mail := model.NewMailBuilder(
+			mail := svc.NewMailBuilder(
 				payload.Email,
 				"So you want to reset your password?\n"+
 					"Your token is: "+token,

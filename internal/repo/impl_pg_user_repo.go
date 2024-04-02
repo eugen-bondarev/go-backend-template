@@ -1,19 +1,20 @@
-package impl
+package repo
 
 import (
 	"errors"
 	"go-backend-template/internal/model"
+	"go-backend-template/internal/postgres"
 
 	"github.com/eugen-bondarev/go-slice-helpers/parallel"
 )
 
 type PGUserRepo struct {
-	pg         *Postgres
-	userMapper model.UserMapper[PGUser]
+	pg         *postgres.Postgres
+	userMapper model.UserMapper[postgres.PGUser]
 }
 
 func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
-	var users []PGUser
+	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users WHERE email = $1", email)
 
@@ -29,7 +30,7 @@ func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
 }
 
 func (userRepo *PGUserRepo) GetUserByID(ID int) (model.User, error) {
-	var users []PGUser
+	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users WHERE id = $1", ID)
 
@@ -45,7 +46,7 @@ func (userRepo *PGUserRepo) GetUserByID(ID int) (model.User, error) {
 }
 
 func (userRepo *PGUserRepo) GetUsers() ([]model.User, error) {
-	var users []PGUser
+	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users")
 
@@ -75,9 +76,9 @@ func (userRepo *PGUserRepo) DeleteUserByID(id int) error {
 	return err
 }
 
-func NewPGUserRepo(pg *Postgres) model.UserRepo {
+func NewPGUserRepo(pg *postgres.Postgres) IUserRepo {
 	return &PGUserRepo{
 		pg:         pg,
-		userMapper: NewPGUserMapper(),
+		userMapper: postgres.NewPGUserMapper(),
 	}
 }

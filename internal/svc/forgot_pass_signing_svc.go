@@ -1,4 +1,4 @@
-package model
+package svc
 
 import (
 	"fmt"
@@ -6,10 +6,10 @@ import (
 )
 
 type ForgotPassSigningSvc struct {
-	signingSvc SigningSvc
+	signingSvc ISigningSvc
 }
 
-func NewForgotPassSigningSvc(signingSvc SigningSvc) ForgotPassSigningSvc {
+func NewForgotPassSigningSvc(signingSvc ISigningSvc) ForgotPassSigningSvc {
 	return ForgotPassSigningSvc{
 		signingSvc: signingSvc,
 	}

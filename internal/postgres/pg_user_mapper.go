@@ -1,4 +1,4 @@
-package impl
+package postgres
 
 import "go-backend-template/internal/model"
 
