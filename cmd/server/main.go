@@ -26,6 +26,10 @@ type App struct {
 	policies             permissions.Policies
 }
 
+type Controller struct {
+	app *App
+}
+
 func MustInitApp() App {
 	pg, err := postgres.NewPostgres(
 		os.Getenv("DB_HOST"),
@@ -62,12 +66,11 @@ func MustInitApp() App {
 	)
 
 	var tokenInvalidator svc.ITokenInvalidatorSvc
-
-	if redisErr == nil {
+	if redisErr != nil {
+		tokenInvalidator = svc.NewNoopTokenInvalidator()
+	} else {
 		tmpStorageSvc := svc.NewRedisTempStorageSvc(&redis)
 		tokenInvalidator = svc.NewDefaultTokenInvalidator(tmpStorageSvc)
-	} else {
-		tokenInvalidator = svc.NewNoopTokenInvalidator()
 	}
 
 	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc, tokenInvalidator)
@@ -91,6 +94,8 @@ func main() {
 	godotenv.Load()
 
 	app := MustInitApp()
+
+	controller := Controller{app: &app}
 
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -129,7 +134,7 @@ func main() {
 				return nil, err
 			}
 
-			return nil, app.userRepo.DeleteUserByID(id)
+			return nil, controller.deleteUserByID(id)
 		}),
 	)
 
@@ -146,7 +151,7 @@ func main() {
 				return nil, err
 			}
 
-			token, refreshToken, err := app.refreshToken(payload.RefreshToken)
+			token, refreshToken, err := controller.refreshToken(payload.RefreshToken)
 
 			if err != nil {
 				return nil, err
@@ -205,7 +210,7 @@ func main() {
 				return nil, err
 			}
 
-			token, refreshToken, err := app.login(payload.Email, payload.Password)
+			token, refreshToken, err := controller.login(payload.Email, payload.Password)
 
 			if err != nil {
 				return nil, err
@@ -233,7 +238,7 @@ func main() {
 				return nil, err
 			}
 
-			return nil, app.register(payload.Email, payload.Password)
+			return nil, controller.register(payload.Email, payload.Password)
 		}),
 	)
 
