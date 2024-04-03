@@ -18,7 +18,7 @@ import (
 type App struct {
 	signingSvc           svc.ISigningSvc
 	userRepo             repo.IUserRepo
-	userDataSigningSvc   svc.IUserDataSigningSvc
+	userDataSigningSvc   svc.UserDataSigningSvc
 	forgotPassSigningSvc svc.ForgotPassSigningSvc
 	mailerSvc            svc.IMailerSvc
 	authSvc              svc.IAuthSvc

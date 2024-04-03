@@ -5,11 +5,11 @@ import "go-backend-template/internal/model"
 type PGUserMapper struct {
 }
 
-func NewPGUserMapper() model.UserMapper[PGUser] {
+func NewPGUserMapper() model.ModelMapper[model.User, PGUser] {
 	return &PGUserMapper{}
 }
 
-func (userMapper *PGUserMapper) FromUser(user model.User) PGUser {
+func (userMapper *PGUserMapper) FromModel(user model.User) PGUser {
 	return PGUser{
 		ID:           user.ID,
 		Email:        user.Email,
@@ -20,7 +20,7 @@ func (userMapper *PGUserMapper) FromUser(user model.User) PGUser {
 	}
 }
 
-func (userMapper *PGUserMapper) ToUser(pgUser PGUser) model.User {
+func (userMapper *PGUserMapper) ToModel(pgUser PGUser) model.User {
 	return model.User{
 		ID:           pgUser.ID,
 		Email:        pgUser.Email,

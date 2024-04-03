@@ -4,61 +4,92 @@ import (
 	"errors"
 	"go-backend-template/internal/model"
 	"go-backend-template/internal/postgres"
-
-	"github.com/eugen-bondarev/go-slice-helpers/parallel"
 )
 
 type PGUserRepo struct {
 	pg         *postgres.Postgres
-	userMapper model.UserMapper[postgres.PGUser]
+	userMapper model.ModelMapper[model.User, postgres.PGUser]
 }
 
-func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
+func (userRepo *PGUserRepo) getUserByEmail(email string) (postgres.PGUser, error) {
 	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users WHERE email = $1", email)
 
 	if err != nil {
-		return model.User{}, err
+		return postgres.PGUser{}, err
 	}
 
 	if len(users) == 0 {
-		return model.User{}, errors.New("user not found")
+		return postgres.PGUser{}, errors.New("user not found")
 	}
 
-	return userRepo.userMapper.ToUser(users[0]), nil
+	return users[0], nil
 }
 
-func (userRepo *PGUserRepo) GetUserByID(ID int) (model.User, error) {
+func (userRepo *PGUserRepo) getUserByID(ID int) (postgres.PGUser, error) {
 	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users WHERE id = $1", ID)
 
 	if err != nil {
-		return model.User{}, err
+		return postgres.PGUser{}, err
 	}
 
 	if len(users) == 0 {
-		return model.User{}, errors.New("user not found")
+		return postgres.PGUser{}, errors.New("user not found")
 	}
 
-	return userRepo.userMapper.ToUser(users[0]), nil
+	return users[0], nil
 }
 
-func (userRepo *PGUserRepo) GetUsers() ([]model.User, error) {
+func (userRepo *PGUserRepo) getUsers() ([]postgres.PGUser, error) {
 	var users []postgres.PGUser
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users")
 
 	if err != nil {
-		return []model.User{}, err
+		return []postgres.PGUser{}, err
 	}
 
 	if len(users) == 0 {
-		return []model.User{}, errors.New("user not found")
+		return []postgres.PGUser{}, errors.New("user not found")
 	}
 
-	return parallel.Map(users, userRepo.userMapper.ToUser), nil
+	return users, nil
+}
+
+func (userRepo *PGUserRepo) GetUserByEmail(email string) (model.User, error) {
+	user, err := userRepo.getUserByEmail(email)
+
+	if err != nil {
+		return model.User{}, err
+	}
+
+	return userRepo.userMapper.ToModel(user), nil
+}
+
+func (userRepo *PGUserRepo) GetUserByID(ID int) (model.User, error) {
+	user, err := userRepo.getUserByID(ID)
+
+	if err != nil {
+		return model.User{}, err
+	}
+
+	return userRepo.userMapper.ToModel(user), nil
+}
+
+func (userRepo *PGUserRepo) GetUsers() ([]model.User, error) {
+	users, err := userRepo.getUsers()
+
+	if err != nil {
+		return []model.User{}, err
+	}
+
+	return model.ManyToModel(
+		userRepo.userMapper,
+		users,
+	), nil
 }
 
 func (userRepo *PGUserRepo) CreateUser(email, passwordHash, role string) error {
