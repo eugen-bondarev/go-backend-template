@@ -119,7 +119,7 @@ func main() {
 		mw.SetRole(),
 		mw.EnforcePolicy("index", "users"),
 		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
-			return app.userRepo.GetUsers()
+			return controller.getUsers()
 		}),
 	)
 
@@ -134,7 +134,7 @@ func main() {
 				return nil, err
 			}
 
-			return nil, controller.deleteUserByID(id)
+			return controller.deleteUserByID(id)
 		}),
 	)
 
@@ -151,19 +151,7 @@ func main() {
 				return nil, err
 			}
 
-			token, refreshToken, err := controller.refreshToken(payload.RefreshToken)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return struct {
-				Token        string `json:"token"`
-				RefreshToken string `json:"refreshToken"`
-			}{
-				Token:        token,
-				RefreshToken: refreshToken,
-			}, nil
+			return controller.refreshToken(payload.RefreshToken)
 		}),
 	)
 
@@ -179,22 +167,7 @@ func main() {
 				return nil, err
 			}
 
-			parsedSessionToken, err := app.userDataSigningSvc.ParseSessionToken(payload.Token)
-
-			if err != nil {
-				return nil, err
-			}
-
-			parsedRefreshToken, err := app.userDataSigningSvc.ParseRefreshToken(payload.RefreshToken)
-
-			if err != nil {
-				return nil, err
-			}
-
-			app.userDataSigningSvc.InvalidateToken(payload.Token, parsedSessionToken.ExpiresAt)
-			app.userDataSigningSvc.InvalidateToken(payload.RefreshToken, parsedRefreshToken.ExpiresAt)
-
-			return nil, nil
+			return controller.logout(payload.Token, payload.RefreshToken)
 		}),
 	)
 
@@ -210,19 +183,7 @@ func main() {
 				return nil, err
 			}
 
-			token, refreshToken, err := controller.login(payload.Email, payload.Password)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return struct {
-				Token        string `json:"token"`
-				RefreshToken string `json:"refreshToken"`
-			}{
-				Token:        token,
-				RefreshToken: refreshToken,
-			}, nil
+			return controller.login(payload.Email, payload.Password)
 		}),
 	)
 
@@ -238,7 +199,7 @@ func main() {
 				return nil, err
 			}
 
-			return nil, controller.register(payload.Email, payload.Password)
+			return controller.register(payload.Email, payload.Password)
 		}),
 	)
 
@@ -254,13 +215,7 @@ func main() {
 				return nil, err
 			}
 
-			email, err := app.forgotPassSigningSvc.Parse(payload.Token)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return nil, app.authSvc.SetPasswordByEmail(email, payload.Password)
+			return controller.resetPassword(payload.Token, payload.Password)
 		}),
 	)
 
@@ -275,19 +230,7 @@ func main() {
 				return nil, err
 			}
 
-			token, err := app.forgotPassSigningSvc.Sign(payload.Email)
-
-			if err != nil {
-				return nil, err
-			}
-
-			mail := svc.NewMailBuilder(
-				payload.Email,
-				"So you want to reset your password?\n"+
-					"Your token is: "+token.Value,
-			)
-
-			return nil, app.mailerSvc.Send(mail)
+			return controller.forgotPassword(payload.Email)
 		}),
 	)
 
