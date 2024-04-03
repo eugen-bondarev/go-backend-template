@@ -11,7 +11,7 @@ type Redis struct {
 	db *rd.Client
 }
 
-func NewRedis(host, port, password string) Redis {
+func NewRedis(host, port, password string) (Redis, error) {
 	db := rd.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", host, port),
 		Password: password,
@@ -20,7 +20,7 @@ func NewRedis(host, port, password string) Redis {
 
 	return Redis{
 		db: db,
-	}
+	}, db.ClientID().Err()
 }
 
 func (r *Redis) GetDB() *rd.Client {

@@ -9,20 +9,17 @@ import (
 )
 
 type GinMiddleware struct {
-	ctx                 *gin.Context
-	userDataSigningSvc  *svc.UserDataSigningSvc
-	tokenInvalidatorSvc svc.ITokenInvalidatorSvc
+	ctx                *gin.Context
+	userDataSigningSvc *svc.UserDataSigningSvc
 }
 
 func NewGinMiddleware(
 	ctx *gin.Context,
 	userDataSigningSvc *svc.UserDataSigningSvc,
-	tokenInvalidatorSvc svc.ITokenInvalidatorSvc,
 ) Middleware {
 	return &GinMiddleware{
-		ctx:                 ctx,
-		userDataSigningSvc:  userDataSigningSvc,
-		tokenInvalidatorSvc: tokenInvalidatorSvc,
+		ctx:                ctx,
+		userDataSigningSvc: userDataSigningSvc,
 	}
 }
 
@@ -39,10 +36,6 @@ func (m *GinMiddleware) getRoleFromHeader() string {
 	}
 
 	sessionData, _ := m.userDataSigningSvc.ParseSessionToken(components[1])
-
-	if !m.tokenInvalidatorSvc.IsValid(components[1]) {
-		return ""
-	}
 
 	return sessionData.Role
 }
@@ -64,32 +57,29 @@ func (m *GinMiddleware) Abort() {
 
 type GinMiddlewareFactory struct {
 	userDataSigningSvc svc.UserDataSigningSvc
-	tokenInvalidator   svc.ITokenInvalidatorSvc
 	policies           *permissions.Policies
 }
 
 func NewGinMiddlewareFactory(
 	userDataSigningSvc svc.UserDataSigningSvc,
-	tokenInvalidator svc.ITokenInvalidatorSvc,
 	policies *permissions.Policies,
 ) GinMiddlewareFactory {
 	return GinMiddlewareFactory{
 		userDataSigningSvc: userDataSigningSvc,
-		tokenInvalidator:   tokenInvalidator,
 		policies:           policies,
 	}
 }
 
 func (factory *GinMiddlewareFactory) SetRole() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		m := NewGinMiddleware(ctx, &factory.userDataSigningSvc, factory.tokenInvalidator)
+		m := NewGinMiddleware(ctx, &factory.userDataSigningSvc)
 		m.SetRole()
 	}
 }
 
 func (factory *GinMiddlewareFactory) EnforcePolicy(action, object string) func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		m := NewGinMiddleware(ctx, nil, factory.tokenInvalidator)
+		m := NewGinMiddleware(ctx, nil)
 		AllowIf(m, func(role string) bool {
 			return factory.policies.RoleCan(role, action, object)
 		})

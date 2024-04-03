@@ -17,18 +17,16 @@ import (
 )
 
 type App struct {
-	signingSvc           svc.ISigningSvc
 	userRepo             repo.IUserRepo
+	signingSvc           svc.ISigningSvc
 	userDataSigningSvc   svc.UserDataSigningSvc
 	forgotPassSigningSvc svc.ForgotPassSigningSvc
 	mailerSvc            svc.IMailerSvc
 	authSvc              svc.IAuthSvc
-	tokenInvalidator     svc.ITokenInvalidatorSvc
 	policies             permissions.Policies
-	// tmpStorageSvc        svc.ITmpStorageSvc
 }
 
-func NewApp() (App, error) {
+func MustInitApp() App {
 	pg, err := postgres.NewPostgres(
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
@@ -37,13 +35,13 @@ func NewApp() (App, error) {
 	)
 
 	if err != nil {
-		return App{}, err
+		panic(err.Error())
 	}
 
 	err = pg.Migrate("./assets/migrations")
 
 	if err != nil {
-		return App{}, err
+		panic(err.Error())
 	}
 
 	userRepo := repo.NewPGUserRepo(&pg)
@@ -55,17 +53,24 @@ func NewApp() (App, error) {
 	)
 	authSvc := svc.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
 	signingSvc := svc.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
-	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc)
 	forgotPassSigningSvc := svc.NewForgotPassSigningSvc(signingSvc)
 
-	redis := redis.NewRedis(
+	redis, redisErr := redis.NewRedis(
 		os.Getenv("REDIS_HOST"),
 		os.Getenv("REDIS_PORT"),
 		os.Getenv("REDIS_PASS"),
 	)
 
-	tmpStorageSvc := svc.NewRedisTempStorageSvc(&redis)
-	tokenInvalidator := svc.NewDefaultTokenInvalidator(tmpStorageSvc)
+	var tokenInvalidator svc.ITokenInvalidatorSvc
+
+	if redisErr == nil {
+		tmpStorageSvc := svc.NewRedisTempStorageSvc(&redis)
+		tokenInvalidator = svc.NewDefaultTokenInvalidator(tmpStorageSvc)
+	} else {
+		tokenInvalidator = svc.NewNoopTokenInvalidator()
+	}
+
+	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc, tokenInvalidator)
 
 	policies := permissions.NewPolicies()
 	policies.Add("admin", "index", "users")
@@ -76,21 +81,16 @@ func NewApp() (App, error) {
 		userRepo:             userRepo,
 		userDataSigningSvc:   userDataSigningSvc,
 		forgotPassSigningSvc: forgotPassSigningSvc,
-		tokenInvalidator:     tokenInvalidator,
 		mailerSvc:            mailerSvc,
 		authSvc:              authSvc,
 		policies:             policies,
-	}, nil
+	}
 }
 
 func main() {
 	godotenv.Load()
 
-	app, err := NewApp()
-
-	if err != nil {
-		panic(err.Error())
-	}
+	app := MustInitApp()
 
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -98,7 +98,6 @@ func main() {
 
 	mw := middleware.NewGinMiddlewareFactory(
 		app.userDataSigningSvc,
-		app.tokenInvalidator,
 		&app.policies,
 	)
 
@@ -187,8 +186,8 @@ func main() {
 				return nil, err
 			}
 
-			app.tokenInvalidator.Invalidate(payload.Token, parsedSessionToken.ExpiresAt)
-			app.tokenInvalidator.Invalidate(payload.RefreshToken, parsedRefreshToken.ExpiresAt)
+			app.userDataSigningSvc.InvalidateToken(payload.Token, parsedSessionToken.ExpiresAt)
+			app.userDataSigningSvc.InvalidateToken(payload.RefreshToken, parsedRefreshToken.ExpiresAt)
 
 			return nil, nil
 		}),
