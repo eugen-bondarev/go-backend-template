@@ -83,6 +83,9 @@ func DecorateHandler(handler func(*gin.Context) (any, error)) func(*gin.Context)
 			return
 		}
 
+		if result == nil {
+			return
+		}
 		ctx.JSON(200, result)
 	}
 }
