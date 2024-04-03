@@ -9,14 +9,20 @@ import (
 )
 
 type GinMiddleware struct {
-	ctx                *gin.Context
-	userDataSigningSvc *svc.UserDataSigningSvc
+	ctx                 *gin.Context
+	userDataSigningSvc  *svc.UserDataSigningSvc
+	tokenInvalidatorSvc svc.ITokenInvalidatorSvc
 }
 
-func NewGinMiddleware(ctx *gin.Context, userDataSigningSvc *svc.UserDataSigningSvc) Middleware {
+func NewGinMiddleware(
+	ctx *gin.Context,
+	userDataSigningSvc *svc.UserDataSigningSvc,
+	tokenInvalidatorSvc svc.ITokenInvalidatorSvc,
+) Middleware {
 	return &GinMiddleware{
-		ctx:                ctx,
-		userDataSigningSvc: userDataSigningSvc,
+		ctx:                 ctx,
+		userDataSigningSvc:  userDataSigningSvc,
+		tokenInvalidatorSvc: tokenInvalidatorSvc,
 	}
 }
 
@@ -32,9 +38,13 @@ func (m *GinMiddleware) getRoleFromHeader() string {
 		return ""
 	}
 
-	_, role, _ := m.userDataSigningSvc.ParseSessionToken(components[1])
+	sessionData, _ := m.userDataSigningSvc.ParseSessionToken(components[1])
 
-	return role
+	if !m.tokenInvalidatorSvc.IsValid(components[1]) {
+		return ""
+	}
+
+	return sessionData.Role
 }
 
 func (m *GinMiddleware) SetRole() {
@@ -54,26 +64,32 @@ func (m *GinMiddleware) Abort() {
 
 type GinMiddlewareFactory struct {
 	userDataSigningSvc svc.UserDataSigningSvc
+	tokenInvalidator   svc.ITokenInvalidatorSvc
 	policies           *permissions.Policies
 }
 
-func NewGinMiddlewareFactory(userDataSigningSvc svc.UserDataSigningSvc, policies *permissions.Policies) GinMiddlewareFactory {
+func NewGinMiddlewareFactory(
+	userDataSigningSvc svc.UserDataSigningSvc,
+	tokenInvalidator svc.ITokenInvalidatorSvc,
+	policies *permissions.Policies,
+) GinMiddlewareFactory {
 	return GinMiddlewareFactory{
 		userDataSigningSvc: userDataSigningSvc,
+		tokenInvalidator:   tokenInvalidator,
 		policies:           policies,
 	}
 }
 
 func (factory *GinMiddlewareFactory) SetRole() func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		m := NewGinMiddleware(ctx, &factory.userDataSigningSvc)
+		m := NewGinMiddleware(ctx, &factory.userDataSigningSvc, factory.tokenInvalidator)
 		m.SetRole()
 	}
 }
 
 func (factory *GinMiddlewareFactory) EnforcePolicy(action, object string) func(*gin.Context) {
 	return func(ctx *gin.Context) {
-		m := NewGinMiddleware(ctx, nil)
+		m := NewGinMiddleware(ctx, nil, factory.tokenInvalidator)
 		AllowIf(m, func(role string) bool {
 			return factory.policies.RoleCan(role, action, object)
 		})

@@ -15,7 +15,7 @@ func NewForgotPassSigningSvc(signingSvc ISigningSvc) ForgotPassSigningSvc {
 	}
 }
 
-func (s *ForgotPassSigningSvc) Sign(email string) (string, error) {
+func (s *ForgotPassSigningSvc) Sign(email string) (Token, error) {
 	return s.signingSvc.Sign(map[string]any{
 		"email": email,
 	}, time.Now().Add(time.Hour))

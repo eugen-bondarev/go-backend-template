@@ -11,6 +11,17 @@ type UserDataSigningSvc struct {
 	refreshTokenExpiration time.Duration
 }
 
+type RefreshData struct {
+	ID        int
+	ExpiresAt time.Time
+}
+
+type SessionData struct {
+	ID        int
+	Role      string
+	ExpiresAt time.Time
+}
+
 func NewUserDataSigningSvc(signingSvc ISigningSvc) UserDataSigningSvc {
 	return UserDataSigningSvc{
 		signingSvc:             signingSvc,
@@ -19,63 +30,76 @@ func NewUserDataSigningSvc(signingSvc ISigningSvc) UserDataSigningSvc {
 	}
 }
 
-func (s *UserDataSigningSvc) SignSessionToken(ID int, role string) (string, error) {
-	token, err := s.signingSvc.Sign(
+func (s *UserDataSigningSvc) SignSessionToken(ID int, role string) (Token, error) {
+	return s.signingSvc.Sign(
 		map[string]any{
 			"ID":   ID,
 			"role": role,
 		},
 		time.Now().Add(s.sessionTokenExpiration),
 	)
-
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
 }
 
-func (s *UserDataSigningSvc) SignRefreshToken(ID int) (string, error) {
-	refreshToken, err := s.signingSvc.Sign(
+func (s *UserDataSigningSvc) SignRefreshToken(ID int) (Token, error) {
+	return s.signingSvc.Sign(
 		map[string]any{
 			"ID": ID,
 		},
 		time.Now().Add(s.refreshTokenExpiration),
 	)
-
-	return refreshToken, err
 }
 
-func (s *UserDataSigningSvc) ParseSessionToken(token string) (int, string, error) {
+func (s *UserDataSigningSvc) ParseSessionToken(token string) (SessionData, error) {
 	data, err := s.signingSvc.Parse(token)
 
 	if err != nil {
-		return -1, "", err
+		return SessionData{ID: -1}, err
 	}
 
 	ID, ok := data["ID"].(float64)
 
 	if !ok {
-		return -1, "", errors.New("token has expired")
+		return SessionData{ID: -1}, errors.New("token has expired")
 	}
 
 	role, ok := data["role"].(string)
 
 	if !ok {
-		return -1, "", errors.New("token has expired")
+		return SessionData{ID: -1}, errors.New("token has expired")
 	}
 
-	return int(ID), role, nil
+	exp, ok := data["exp"].(float64)
+
+	if !ok {
+		return SessionData{ID: -1}, errors.New("failed to parse exp")
+	}
+
+	return SessionData{
+		ID:        int(ID),
+		Role:      role,
+		ExpiresAt: time.Unix(0, int64(exp)*int64(time.Second)),
+	}, nil
 }
 
-func (s *UserDataSigningSvc) ParseRefreshToken(token string) (int, error) {
+func (s *UserDataSigningSvc) ParseRefreshToken(token string) (RefreshData, error) {
 	data, err := s.signingSvc.Parse(token)
 
 	if err != nil {
-		return -1, err
+		return RefreshData{
+			ID: -1,
+		}, err
 	}
 
 	ID := data["ID"].(float64)
 
-	return int(ID), nil
+	exp, ok := data["exp"].(float64)
+
+	if !ok {
+		return RefreshData{}, errors.New("failed to parse exp")
+	}
+
+	return RefreshData{
+		ID:        int(ID),
+		ExpiresAt: time.Unix(0, int64(exp)*int64(time.Second)),
+	}, nil
 }

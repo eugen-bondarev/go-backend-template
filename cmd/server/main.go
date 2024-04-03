@@ -5,6 +5,7 @@ import (
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/permissions"
 	"go-backend-template/internal/postgres"
+	"go-backend-template/internal/redis"
 	"go-backend-template/internal/repo"
 	"go-backend-template/internal/svc"
 	"go-backend-template/internal/util"
@@ -22,7 +23,9 @@ type App struct {
 	forgotPassSigningSvc svc.ForgotPassSigningSvc
 	mailerSvc            svc.IMailerSvc
 	authSvc              svc.IAuthSvc
+	tokenInvalidator     svc.ITokenInvalidatorSvc
 	policies             permissions.Policies
+	// tmpStorageSvc        svc.ITmpStorageSvc
 }
 
 func NewApp() (App, error) {
@@ -55,6 +58,15 @@ func NewApp() (App, error) {
 	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc)
 	forgotPassSigningSvc := svc.NewForgotPassSigningSvc(signingSvc)
 
+	redis := redis.NewRedis(
+		os.Getenv("REDIS_HOST"),
+		os.Getenv("REDIS_PORT"),
+		os.Getenv("REDIS_PASS"),
+	)
+
+	tmpStorageSvc := svc.NewRedisTempStorageSvc(&redis)
+	tokenInvalidator := svc.NewDefaultTokenInvalidator(tmpStorageSvc)
+
 	policies := permissions.NewPolicies()
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
@@ -64,6 +76,7 @@ func NewApp() (App, error) {
 		userRepo:             userRepo,
 		userDataSigningSvc:   userDataSigningSvc,
 		forgotPassSigningSvc: forgotPassSigningSvc,
+		tokenInvalidator:     tokenInvalidator,
 		mailerSvc:            mailerSvc,
 		authSvc:              authSvc,
 		policies:             policies,
@@ -85,6 +98,7 @@ func main() {
 
 	mw := middleware.NewGinMiddlewareFactory(
 		app.userDataSigningSvc,
+		app.tokenInvalidator,
 		&app.policies,
 	)
 
@@ -146,6 +160,37 @@ func main() {
 				Token:        token,
 				RefreshToken: refreshToken,
 			}, nil
+		}),
+	)
+
+	auth.POST(
+		"/logout",
+		util.DecorateHandler(func(ctx *gin.Context) (any, error) {
+			payload, err := util.GinGetBody[struct {
+				dto.WithToken
+				dto.WithRefreshToken
+			}](ctx)
+
+			if err != nil {
+				return nil, err
+			}
+
+			parsedSessionToken, err := app.userDataSigningSvc.ParseSessionToken(payload.Token)
+
+			if err != nil {
+				return nil, err
+			}
+
+			parsedRefreshToken, err := app.userDataSigningSvc.ParseRefreshToken(payload.RefreshToken)
+
+			if err != nil {
+				return nil, err
+			}
+
+			app.tokenInvalidator.Invalidate(payload.Token, parsedSessionToken.ExpiresAt)
+			app.tokenInvalidator.Invalidate(payload.RefreshToken, parsedRefreshToken.ExpiresAt)
+
+			return nil, nil
 		}),
 	)
 
@@ -235,7 +280,7 @@ func main() {
 			mail := svc.NewMailBuilder(
 				payload.Email,
 				"So you want to reset your password?\n"+
-					"Your token is: "+token,
+					"Your token is: "+token.Value,
 			)
 
 			return nil, app.mailerSvc.Send(mail)

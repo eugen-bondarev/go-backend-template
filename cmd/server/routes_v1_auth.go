@@ -26,33 +26,33 @@ func (app *App) login(email, plainTextPassword string) (string, string, error) {
 		return "", "", err
 	}
 
-	return token, refreshToken, nil
+	return token.Value, refreshToken.Value, nil
 }
 
 func (app *App) refreshToken(refreshToken string) (string, string, error) {
-	ID, err := app.userDataSigningSvc.ParseRefreshToken(refreshToken)
+	refreshData, err := app.userDataSigningSvc.ParseRefreshToken(refreshToken)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	user, err := app.userRepo.GetUserByID(ID)
+	user, err := app.userRepo.GetUserByID(refreshData.ID)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	token, err := app.userDataSigningSvc.SignSessionToken(ID, user.Role)
+	token, err := app.userDataSigningSvc.SignSessionToken(refreshData.ID, user.Role)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	newRefreshToken, err := app.userDataSigningSvc.SignRefreshToken(ID)
+	newRefreshToken, err := app.userDataSigningSvc.SignRefreshToken(refreshData.ID)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	return token, newRefreshToken, nil
+	return token.Value, newRefreshToken.Value, nil
 }

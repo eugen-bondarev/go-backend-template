@@ -18,12 +18,21 @@ func NewJWTSigningSvc(secret string) ISigningSvc {
 	}
 }
 
-func (signingSvc *JWTSigningSvc) Sign(data map[string]any, expiration time.Time) (string, error) {
+func (signingSvc *JWTSigningSvc) Sign(data map[string]any, expiration time.Time) (Token, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp":  expiration.Unix(),
 		"data": data,
 	})
-	return token.SignedString([]byte(signingSvc.secret))
+
+	tokenStr, err := token.SignedString([]byte(signingSvc.secret))
+	if err != nil {
+		return Token{}, err
+	}
+
+	return Token{
+		Value:     tokenStr,
+		ExpiresAt: expiration,
+	}, nil
 }
 
 func (signingSvc *JWTSigningSvc) Parse(tokenString string) (map[string]any, error) {
@@ -41,6 +50,7 @@ func (signingSvc *JWTSigningSvc) Parse(tokenString string) (map[string]any, erro
 
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok {
 		if data, ok := claims["data"].(map[string]any); ok {
+			data["exp"] = claims["exp"]
 			return data, nil
 		}
 	}
