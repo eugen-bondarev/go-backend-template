@@ -3,6 +3,6 @@ package svc
 import "io"
 
 type IFileStorageSvc interface {
-	Read(ID string) (io.Reader, error)
-	Write(ID string, r io.Reader) error
+	Read(name string) (io.Reader, error)
+	Write(name string, r io.Reader) error
 }

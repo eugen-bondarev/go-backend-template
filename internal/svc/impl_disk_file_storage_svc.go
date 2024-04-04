@@ -1,19 +1,27 @@
 package svc
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
 
 type DiskFileStorageSvc struct {
+	location string
 }
 
-func NewDiskFileStorageSvc() IFileStorageSvc {
-	return &DiskFileStorageSvc{}
+func NewDiskFileStorageSvc(location string) IFileStorageSvc {
+	return &DiskFileStorageSvc{
+		location: location,
+	}
 }
 
-func (d *DiskFileStorageSvc) Read(ID string) (io.Reader, error) {
-	f, err := os.Open(ID)
+func (d *DiskFileStorageSvc) getPath(name string) string {
+	return fmt.Sprintf("%s/%s", d.location, name)
+}
+
+func (d *DiskFileStorageSvc) Read(name string) (io.Reader, error) {
+	f, err := os.Open(d.getPath(name))
 	if err != nil {
 		return nil, err
 	}
@@ -21,8 +29,8 @@ func (d *DiskFileStorageSvc) Read(ID string) (io.Reader, error) {
 	return f, nil
 }
 
-func (d *DiskFileStorageSvc) Write(ID string, r io.Reader) error {
-	f, err := os.OpenFile(ID, os.O_RDWR, 0644)
+func (d *DiskFileStorageSvc) Write(name string, r io.Reader) error {
+	f, err := os.OpenFile(d.getPath(name), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
