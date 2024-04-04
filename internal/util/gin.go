@@ -69,8 +69,8 @@ func DecorateHandler(handler func(*gin.Context) (any, error)) func(*gin.Context)
 		result, err := handler(ctx)
 
 		if err != nil {
-			parsedErr, ok := err.(*RequestError)
 			ctx.Header("Content-Type", "application/problem+json")
+			parsedErr, ok := err.(*RequestError)
 			if ok {
 				ctx.JSON(parsedErr.StatusCode, gin.H{
 					"error": parsedErr.Err.Error(),
@@ -86,6 +86,7 @@ func DecorateHandler(handler func(*gin.Context) (any, error)) func(*gin.Context)
 		if result == nil {
 			return
 		}
+
 		ctx.JSON(200, result)
 	}
 }
