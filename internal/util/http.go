@@ -2,22 +2,22 @@ package util
 
 import "errors"
 
-type RequestError struct {
+type APIError struct {
 	StatusCode int
 	Err        error
 }
 
-func NewRequestError(statusCode int, err error) *RequestError {
-	return &RequestError{
+func NewAPIError(statusCode int, err error) *APIError {
+	return &APIError{
 		StatusCode: statusCode,
 		Err:        err,
 	}
 }
 
-func NewRequestErrorStr(statusCode int, str string) *RequestError {
-	return NewRequestError(statusCode, errors.New(str))
+func NewAPIErrorStr(statusCode int, str string) *APIError {
+	return NewAPIError(statusCode, errors.New(str))
 }
 
-func (r *RequestError) Error() string {
+func (r *APIError) Error() string {
 	return r.Err.Error()
 }

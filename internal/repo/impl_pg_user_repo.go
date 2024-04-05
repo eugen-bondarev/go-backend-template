@@ -4,6 +4,7 @@ import (
 	"errors"
 	"go-backend-template/internal/model"
 	"go-backend-template/internal/postgres"
+	"go-backend-template/internal/util"
 )
 
 type PGUserRepo struct {
@@ -48,12 +49,14 @@ func (userRepo *PGUserRepo) getUsers() ([]postgres.PGUser, error) {
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users")
 
+	failedErr := util.NewAPIErrorStr(500, "failed to get users")
+
 	if err != nil {
-		return []postgres.PGUser{}, err
+		return []postgres.PGUser{}, failedErr
 	}
 
 	if len(users) == 0 {
-		return []postgres.PGUser{}, errors.New("user not found")
+		return []postgres.PGUser{}, failedErr
 	}
 
 	return users, nil

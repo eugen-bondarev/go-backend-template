@@ -48,7 +48,7 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 		}
 
 		ctx.Header("Content-Type", "application/problem+json")
-		parsedErr, ok := err.(*RequestError)
+		parsedErr, ok := err.(*APIError)
 		if ok {
 			ctx.JSON(parsedErr.StatusCode, gin.H{
 				"error": parsedErr.Err.Error(),
@@ -64,13 +64,17 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 	}
 }
 
-func DecorateHandler(handler func(*gin.Context) (any, error)) func(*gin.Context) {
+type GinHandler = func(*gin.Context)
+
+type CustomHandler = func(*gin.Context) (any, error)
+
+func DecorateHandler(handler CustomHandler) GinHandler {
 	return func(ctx *gin.Context) {
 		result, err := handler(ctx)
 
 		if err != nil {
 			ctx.Header("Content-Type", "application/problem+json")
-			parsedErr, ok := err.(*RequestError)
+			parsedErr, ok := err.(*APIError)
 			if ok {
 				ctx.JSON(parsedErr.StatusCode, gin.H{
 					"error": parsedErr.Err.Error(),
