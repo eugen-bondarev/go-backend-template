@@ -8,23 +8,23 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-type JWTSigningSvc struct {
+type JWTSigning struct {
 	secret string
 }
 
-func NewJWTSigningSvc(secret string) ISigning {
-	return &JWTSigningSvc{
+func NewJWTSigning(secret string) ISigning {
+	return &JWTSigning{
 		secret: secret,
 	}
 }
 
-func (signingSvc *JWTSigningSvc) Sign(data map[string]any, expiration time.Time) (Token, error) {
+func (signing *JWTSigning) Sign(data map[string]any, expiration time.Time) (Token, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp":  expiration.Unix(),
 		"data": data,
 	})
 
-	tokenStr, err := token.SignedString([]byte(signingSvc.secret))
+	tokenStr, err := token.SignedString([]byte(signing.secret))
 	if err != nil {
 		return Token{}, err
 	}
@@ -35,13 +35,13 @@ func (signingSvc *JWTSigningSvc) Sign(data map[string]any, expiration time.Time)
 	}, nil
 }
 
-func (signingSvc *JWTSigningSvc) Parse(tokenString string) (map[string]any, error) {
+func (signing *JWTSigning) Parse(tokenString string) (map[string]any, error) {
 	parsedToken, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 
-		return []byte(signingSvc.secret), nil
+		return []byte(signing.secret), nil
 	})
 
 	if err != nil {

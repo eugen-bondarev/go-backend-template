@@ -6,23 +6,23 @@ import (
 )
 
 type ForgotPassSigning struct {
-	signingSvc ISigning
+	signing ISigning
 }
 
-func NewForgotPassSigningSvc(signingSvc ISigning) ForgotPassSigning {
+func NewForgotPassSigning(signing ISigning) ForgotPassSigning {
 	return ForgotPassSigning{
-		signingSvc: signingSvc,
+		signing: signing,
 	}
 }
 
 func (s *ForgotPassSigning) Sign(email string) (Token, error) {
-	return s.signingSvc.Sign(map[string]any{
+	return s.signing.Sign(map[string]any{
 		"email": email,
 	}, time.Now().Add(time.Hour))
 }
 
 func (s *ForgotPassSigning) Parse(token string) (string, error) {
-	data, err := s.signingSvc.Parse(token)
+	data, err := s.signing.Parse(token)
 
 	if err != nil {
 		return "", err

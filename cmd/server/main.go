@@ -44,15 +44,15 @@ func MustInitApp() App {
 	util.PanicOnError(err)
 
 	userRepo := repo.NewPGUserRepo(&pg)
-	mailerSvc := svc.NewSMTPMailer(
+	mailer := svc.NewSMTPMailer(
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 		os.Getenv("SMTP_HOST"),
 		os.Getenv("SMTP_PORT"),
 	)
 	auth := svc.NewDefaultAuth(userRepo, os.Getenv("PEPPER"))
-	signing := svc.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
-	forgotPassSigning := svc.NewForgotPassSigningSvc(signing)
+	signing := svc.NewJWTSigning(os.Getenv("JWT_SECRET"))
+	forgotPassSigning := svc.NewForgotPassSigning(signing)
 
 	redis, redisErr := redis.NewRedis(
 		os.Getenv("REDIS_HOST"),
@@ -60,15 +60,15 @@ func MustInitApp() App {
 		os.Getenv("REDIS_PASS"),
 	)
 
-	var tokenInvalidator svc.ITokenInvalidatorSvc
+	var tokenInvalidator svc.ITokenInvalidator
 	if redisErr != nil {
 		tokenInvalidator = svc.NewNoopTokenInvalidator()
 	} else {
-		tmpStorageSvc := svc.NewRedisTempStorage(&redis)
-		tokenInvalidator = svc.NewDefaultTokenInvalidator(tmpStorageSvc)
+		tmpStorage := svc.NewRedisTempStorage(&redis)
+		tokenInvalidator = svc.NewDefaultTokenInvalidator(tmpStorage)
 	}
 
-	userDataSigning := svc.NewUserDataSigningSvc(signing, tokenInvalidator)
+	userDataSigning := svc.NewUserDataSigning(signing, tokenInvalidator)
 
 	fileRepo := repo.NewPGFileRepo(&pg)
 	fileStorage := svc.NewDiskFileStorage("./storage")
@@ -83,7 +83,7 @@ func MustInitApp() App {
 		userRepo:          userRepo,
 		userDataSigning:   userDataSigning,
 		forgotPassSigning: forgotPassSigning,
-		mailer:            mailerSvc,
+		mailer:            mailer,
 		auth:              auth,
 		fieManager:        fileManager,
 		policies:          policies,

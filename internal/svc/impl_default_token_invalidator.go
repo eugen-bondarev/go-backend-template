@@ -3,21 +3,21 @@ package svc
 import "time"
 
 type DefaultTokenInvalidator struct {
-	tmpStorageSvc ITmpStorageSvc
+	tmpStorage ITmpStorage
 }
 
-func NewDefaultTokenInvalidator(tmpStorageSvc ITmpStorageSvc) ITokenInvalidatorSvc {
+func NewDefaultTokenInvalidator(tmpStorage ITmpStorage) ITokenInvalidator {
 	return &DefaultTokenInvalidator{
-		tmpStorageSvc: tmpStorageSvc,
+		tmpStorage: tmpStorage,
 	}
 }
 
 func (ti *DefaultTokenInvalidator) Invalidate(token string, until time.Time) {
-	ti.tmpStorageSvc.Set(token, "1", until)
+	ti.tmpStorage.Set(token, "1", until)
 }
 
 func (ti *DefaultTokenInvalidator) IsValid(token string) bool {
-	val, err := ti.tmpStorageSvc.Get(token)
+	val, err := ti.tmpStorage.Get(token)
 
 	if err != nil {
 		return true

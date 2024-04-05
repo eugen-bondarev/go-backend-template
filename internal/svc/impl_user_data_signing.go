@@ -6,8 +6,8 @@ import (
 )
 
 type UserDataSigning struct {
-	signingSvc             ISigning
-	tokenInvalidatorSvc    ITokenInvalidatorSvc
+	signing                ISigning
+	tokenInvalidator       ITokenInvalidator
 	sessionTokenExpiration time.Duration
 	refreshTokenExpiration time.Duration
 }
@@ -23,17 +23,17 @@ type SessionData struct {
 	ExpiresAt time.Time
 }
 
-func NewUserDataSigningSvc(signingSvc ISigning, tokenInvalidatorSvc ITokenInvalidatorSvc) UserDataSigning {
+func NewUserDataSigning(signing ISigning, tokenInvalidator ITokenInvalidator) UserDataSigning {
 	return UserDataSigning{
-		signingSvc:             signingSvc,
-		tokenInvalidatorSvc:    tokenInvalidatorSvc,
+		signing:                signing,
+		tokenInvalidator:       tokenInvalidator,
 		sessionTokenExpiration: time.Minute * 2,
 		refreshTokenExpiration: time.Minute * 30,
 	}
 }
 
 func (s *UserDataSigning) SignSessionToken(ID int, role string) (Token, error) {
-	return s.signingSvc.Sign(
+	return s.signing.Sign(
 		map[string]any{
 			"ID":   ID,
 			"role": role,
@@ -43,7 +43,7 @@ func (s *UserDataSigning) SignSessionToken(ID int, role string) (Token, error) {
 }
 
 func (s *UserDataSigning) SignRefreshToken(ID int) (Token, error) {
-	return s.signingSvc.Sign(
+	return s.signing.Sign(
 		map[string]any{
 			"ID": ID,
 		},
@@ -52,10 +52,10 @@ func (s *UserDataSigning) SignRefreshToken(ID int) (Token, error) {
 }
 
 func (s *UserDataSigning) ParseSessionToken(token string) (SessionData, error) {
-	if !s.tokenInvalidatorSvc.IsValid(token) {
+	if !s.tokenInvalidator.IsValid(token) {
 		return SessionData{ID: -1}, errors.New("user logged out")
 	}
-	data, err := s.signingSvc.Parse(token)
+	data, err := s.signing.Parse(token)
 
 	if err != nil {
 		return SessionData{ID: -1}, err
@@ -87,11 +87,11 @@ func (s *UserDataSigning) ParseSessionToken(token string) (SessionData, error) {
 }
 
 func (s *UserDataSigning) ParseRefreshToken(token string) (RefreshData, error) {
-	if !s.tokenInvalidatorSvc.IsValid(token) {
+	if !s.tokenInvalidator.IsValid(token) {
 		return RefreshData{ID: -1}, errors.New("user logged out")
 	}
 
-	data, err := s.signingSvc.Parse(token)
+	data, err := s.signing.Parse(token)
 
 	if err != nil {
 		return RefreshData{
@@ -114,5 +114,5 @@ func (s *UserDataSigning) ParseRefreshToken(token string) (RefreshData, error) {
 }
 
 func (s *UserDataSigning) InvalidateToken(token string, until time.Time) {
-	s.tokenInvalidatorSvc.Invalidate(token, until)
+	s.tokenInvalidator.Invalidate(token, until)
 }

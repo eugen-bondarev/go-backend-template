@@ -7,10 +7,10 @@ import (
 
 type FileManager struct {
 	fileRepo    repo.IFileRepo
-	fileStorage IFileStorageSvc
+	fileStorage IFileStorage
 }
 
-func NewFileManager(fileRepo repo.IFileRepo, fileStorage IFileStorageSvc) IFileManager {
+func NewFileManager(fileRepo repo.IFileRepo, fileStorage IFileStorage) IFileManager {
 	return &FileManager{
 		fileRepo:    fileRepo,
 		fileStorage: fileStorage,

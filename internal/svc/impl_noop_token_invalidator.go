@@ -5,7 +5,7 @@ import "time"
 type NoopTokenInvalidator struct {
 }
 
-func NewNoopTokenInvalidator() ITokenInvalidatorSvc {
+func NewNoopTokenInvalidator() ITokenInvalidator {
 	return &NoopTokenInvalidator{}
 }
 

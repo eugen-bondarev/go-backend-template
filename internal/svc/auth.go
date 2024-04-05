@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	ErrAuthSvcAuthFailed = util.NewAPIErrorStr(
+	ErrAuthAuthFailed = util.NewAPIErrorStr(
 		403,
 		"authentication failed, please check your credentials",
 	)
-	ErrAuthSvcCreateUserFailed = util.NewAPIErrorStr(
+	ErrAuthCreateUserFailed = util.NewAPIErrorStr(
 		403,
 		"registration failed",
 	)
