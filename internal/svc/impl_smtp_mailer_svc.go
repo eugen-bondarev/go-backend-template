@@ -13,7 +13,7 @@ type SMTPMailerSvc struct {
 	auth     smtp.Auth
 }
 
-func NewSMTPMailerSvc(username, password, host, port string) IMailerSvc {
+func NewSMTPMailer(username, password, host, port string) IMailer {
 	auth := smtp.PlainAuth("", username, password, host)
 
 	return &SMTPMailerSvc{

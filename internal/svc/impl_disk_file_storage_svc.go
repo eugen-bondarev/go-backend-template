@@ -10,7 +10,7 @@ type DiskFileStorageSvc struct {
 	location string
 }
 
-func NewDiskFileStorageSvc(location string) IFileStorageSvc {
+func NewDiskFileStorage(location string) IFileStorageSvc {
 	return &DiskFileStorageSvc{
 		location: location,
 	}

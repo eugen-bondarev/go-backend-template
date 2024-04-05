@@ -17,13 +17,14 @@ import (
 )
 
 type App struct {
-	userRepo             repo.IUserRepo
-	signingSvc           svc.ISigningSvc
-	userDataSigningSvc   svc.UserDataSigningSvc
-	forgotPassSigningSvc svc.ForgotPassSigningSvc
-	mailerSvc            svc.IMailerSvc
-	authSvc              svc.IAuthSvc
-	policies             permissions.Policies
+	userRepo          repo.IUserRepo
+	signing           svc.ISigning
+	userDataSigning   svc.UserDataSigning
+	forgotPassSigning svc.ForgotPassSigning
+	mailer            svc.IMailer
+	auth              svc.IAuth
+	fieManager        svc.IFileManager
+	policies          permissions.Policies
 }
 
 type Controller struct {
@@ -37,27 +38,21 @@ func MustInitApp() App {
 		os.Getenv("DB_PASS"),
 		os.Getenv("DB_PORT"),
 	)
-
-	if err != nil {
-		panic(err.Error())
-	}
+	util.PanicOnError(err)
 
 	err = pg.Migrate("./assets/migrations")
-
-	if err != nil {
-		panic(err.Error())
-	}
+	util.PanicOnError(err)
 
 	userRepo := repo.NewPGUserRepo(&pg)
-	mailerSvc := svc.NewSMTPMailerSvc(
+	mailerSvc := svc.NewSMTPMailer(
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 		os.Getenv("SMTP_HOST"),
 		os.Getenv("SMTP_PORT"),
 	)
-	authSvc := svc.NewDefaultAuthSvc(userRepo, os.Getenv("PEPPER"))
-	signingSvc := svc.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
-	forgotPassSigningSvc := svc.NewForgotPassSigningSvc(signingSvc)
+	auth := svc.NewDefaultAuth(userRepo, os.Getenv("PEPPER"))
+	signing := svc.NewJWTSigningSvc(os.Getenv("JWT_SECRET"))
+	forgotPassSigning := svc.NewForgotPassSigningSvc(signing)
 
 	redis, redisErr := redis.NewRedis(
 		os.Getenv("REDIS_HOST"),
@@ -69,24 +64,29 @@ func MustInitApp() App {
 	if redisErr != nil {
 		tokenInvalidator = svc.NewNoopTokenInvalidator()
 	} else {
-		tmpStorageSvc := svc.NewRedisTempStorageSvc(&redis)
+		tmpStorageSvc := svc.NewRedisTempStorage(&redis)
 		tokenInvalidator = svc.NewDefaultTokenInvalidator(tmpStorageSvc)
 	}
 
-	userDataSigningSvc := svc.NewUserDataSigningSvc(signingSvc, tokenInvalidator)
+	userDataSigning := svc.NewUserDataSigningSvc(signing, tokenInvalidator)
+
+	fileRepo := repo.NewPGFileRepo(&pg)
+	fileStorage := svc.NewDiskFileStorage("./storage")
+	fileManager := svc.NewFileManager(fileRepo, fileStorage)
 
 	policies := permissions.NewPolicies()
 	policies.Add("admin", "index", "users")
 	policies.Add("admin", "manage", "users")
 
 	return App{
-		signingSvc:           signingSvc,
-		userRepo:             userRepo,
-		userDataSigningSvc:   userDataSigningSvc,
-		forgotPassSigningSvc: forgotPassSigningSvc,
-		mailerSvc:            mailerSvc,
-		authSvc:              authSvc,
-		policies:             policies,
+		signing:           signing,
+		userRepo:          userRepo,
+		userDataSigning:   userDataSigning,
+		forgotPassSigning: forgotPassSigning,
+		mailer:            mailerSvc,
+		auth:              auth,
+		fieManager:        fileManager,
+		policies:          policies,
 	}
 }
 
@@ -102,7 +102,7 @@ func main() {
 	}
 
 	mw := middleware.NewGinMiddlewareFactory(
-		app.userDataSigningSvc,
+		app.userDataSigning,
 		&app.policies,
 	)
 

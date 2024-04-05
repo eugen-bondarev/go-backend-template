@@ -7,7 +7,7 @@ type Token struct {
 	ExpiresAt time.Time
 }
 
-type ISigningSvc interface {
+type ISigning interface {
 	Sign(claims map[string]any, expiration time.Time) (Token, error)
 	Parse(token string) (map[string]any, error)
 }

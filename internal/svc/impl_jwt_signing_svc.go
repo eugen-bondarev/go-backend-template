@@ -12,7 +12,7 @@ type JWTSigningSvc struct {
 	secret string
 }
 
-func NewJWTSigningSvc(secret string) ISigningSvc {
+func NewJWTSigningSvc(secret string) ISigning {
 	return &JWTSigningSvc{
 		secret: secret,
 	}

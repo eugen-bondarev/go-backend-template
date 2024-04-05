@@ -12,7 +12,7 @@ type DefaultAuthSvc struct {
 	pepper   string
 }
 
-func NewDefaultAuthSvc(userRepo repo.IUserRepo, pepper string) IAuthSvc {
+func NewDefaultAuth(userRepo repo.IUserRepo, pepper string) IAuth {
 	return &DefaultAuthSvc{
 		userRepo: userRepo,
 		pepper:   pepper,

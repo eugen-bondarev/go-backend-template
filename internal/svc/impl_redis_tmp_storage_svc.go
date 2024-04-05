@@ -9,7 +9,7 @@ type RedisTmpStorageSvc struct {
 	rd *redis.Redis
 }
 
-func NewRedisTempStorageSvc(rd *redis.Redis) ITmpStorageSvc {
+func NewRedisTempStorage(rd *redis.Redis) ITmpStorageSvc {
 	return &RedisTmpStorageSvc{
 		rd: rd,
 	}

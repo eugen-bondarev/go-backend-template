@@ -10,12 +10,12 @@ import (
 
 type GinMiddleware struct {
 	ctx                *gin.Context
-	userDataSigningSvc *svc.UserDataSigningSvc
+	userDataSigningSvc *svc.UserDataSigning
 }
 
 func NewGinMiddleware(
 	ctx *gin.Context,
-	userDataSigningSvc *svc.UserDataSigningSvc,
+	userDataSigningSvc *svc.UserDataSigning,
 ) Middleware {
 	return &GinMiddleware{
 		ctx:                ctx,
@@ -56,12 +56,12 @@ func (m *GinMiddleware) Abort() {
 }
 
 type GinMiddlewareFactory struct {
-	userDataSigningSvc svc.UserDataSigningSvc
+	userDataSigningSvc svc.UserDataSigning
 	policies           *permissions.Policies
 }
 
 func NewGinMiddlewareFactory(
-	userDataSigningSvc svc.UserDataSigningSvc,
+	userDataSigningSvc svc.UserDataSigning,
 	policies *permissions.Policies,
 ) GinMiddlewareFactory {
 	return GinMiddlewareFactory{

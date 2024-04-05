@@ -16,7 +16,7 @@ var (
 	)
 )
 
-type IAuthSvc interface {
+type IAuth interface {
 	CreateUser(email, plainTextPassword, role string) error
 	SetPasswordByEmail(email, plainTextPassword string) error
 	AuthenticateUser(email, plainTextPassword string) (model.User, error)
