@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go-backend-template/internal/dto"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/permissions"
@@ -14,6 +15,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"github.com/pelletier/go-toml/v2"
+	"golang.org/x/text/language"
 )
 
 type App struct {
@@ -90,10 +94,37 @@ func MustInitApp() App {
 	}
 }
 
+var bundle *i18n.Bundle
+
 func main() {
 	godotenv.Load()
 
 	app := MustInitApp()
+
+	bundle = i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	bundle.LoadMessageFile("de.toml")
+
+	de := i18n.NewLocalizer(bundle, "de")
+	en := i18n.NewLocalizer(bundle, "en")
+	fmt.Println(de.Localize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "greeting1",
+			Other: "Hello, {{.Name}}",
+		},
+		TemplateData: map[string]any{
+			"Name": "Eugen",
+		},
+	}))
+	fmt.Println(en.Localize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "greeting1",
+			Other: "Hello, {{.Name}}",
+		},
+		TemplateData: map[string]any{
+			"Name": "Eugen",
+		},
+	}))
 
 	controller := Controller{app: &app}
 

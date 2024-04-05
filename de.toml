@@ -1,0 +1,2 @@
+[greeting1]
+other = "{{.Name}}, hallo!"
