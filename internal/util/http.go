@@ -24,6 +24,30 @@ func NewAPIErrorStr(statusCode int, str string) *APIError {
 	})
 }
 
+func NewAPIErrorLoc(statusCode int, msgID string, msg string, template ...interface{}) *APIError {
+	defaultMessage := &i18n.Message{
+		ID:    msgID,
+		Other: msg,
+	}
+
+	if len(template) == 0 {
+		return NewAPIError(
+			statusCode,
+			i18n.LocalizeConfig{
+				DefaultMessage: defaultMessage,
+			},
+		)
+	}
+
+	return NewAPIError(
+		statusCode,
+		i18n.LocalizeConfig{
+			DefaultMessage: defaultMessage,
+			TemplateData:   template[0],
+		},
+	)
+}
+
 func (r *APIError) Error() string {
 	return r.LocalizeConfig.MessageID
 }
