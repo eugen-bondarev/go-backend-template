@@ -9,7 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
+
+var Bundle *i18n.Bundle
+var Localizers map[string]*i18n.Localizer
 
 func GetParamString(params *gin.Params, key string) (string, bool) {
 	return params.Get(key)
@@ -38,6 +42,25 @@ func DecorateMiddleware(handler func(*gin.Context)) func(*gin.Context) {
 	}
 }
 
+func getLang(ctx *gin.Context) string {
+	acceptLangHeader := ctx.GetHeader("Accept-Language")
+	acceptLangs := strings.Split(acceptLangHeader, ",")
+	lang := acceptLangs[0]
+	if len(lang) == 0 {
+		return "en"
+	}
+	return lang
+}
+
+func getLocalizer(ctx *gin.Context) *i18n.Localizer {
+	lang := getLang(ctx)
+	localizer := Localizers[lang]
+	if localizer != nil {
+		return localizer
+	}
+	return Localizers["en"]
+}
+
 func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		err := handler(ctx)
@@ -50,9 +73,16 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 		ctx.Header("Content-Type", "application/problem+json")
 		parsedErr, ok := err.(*APIError)
 		if ok {
-			ctx.JSON(parsedErr.StatusCode, gin.H{
-				"error": parsedErr.Err.Error(),
-			})
+			if localizer := getLocalizer(ctx); localizer != nil {
+				localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
+				ctx.JSON(parsedErr.StatusCode, gin.H{
+					"error": localized,
+				})
+			} else {
+				ctx.JSON(parsedErr.StatusCode, gin.H{
+					"error": parsedErr.LocalizeConfig.DefaultMessage.Other,
+				})
+			}
 			ctx.Abort()
 			return
 		}
@@ -76,8 +106,17 @@ func DecorateHandler(handler CustomHandler) GinHandler {
 			ctx.Header("Content-Type", "application/problem+json")
 			parsedErr, ok := err.(*APIError)
 			if ok {
+				if localizer := getLocalizer(ctx); localizer != nil {
+					fmt.Println(localizer)
+					localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
+
+					ctx.JSON(parsedErr.StatusCode, gin.H{
+						"error": localized,
+					})
+					return
+				}
 				ctx.JSON(parsedErr.StatusCode, gin.H{
-					"error": parsedErr.Err.Error(),
+					"error": parsedErr.LocalizeConfig.DefaultMessage.Other,
 				})
 				return
 			}

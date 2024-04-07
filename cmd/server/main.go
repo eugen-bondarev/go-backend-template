@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go-backend-template/internal/dto"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/permissions"
@@ -94,37 +93,31 @@ func MustInitApp() App {
 	}
 }
 
-var bundle *i18n.Bundle
-
 func main() {
 	godotenv.Load()
 
 	app := MustInitApp()
 
-	bundle = i18n.NewBundle(language.English)
-	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-	bundle.LoadMessageFile("de.toml")
+	util.Bundle = i18n.NewBundle(language.English)
+	util.Bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	util.Bundle.LoadMessageFile("de.toml")
+	util.Localizers = make(map[string]*i18n.Localizer)
 
-	de := i18n.NewLocalizer(bundle, "de")
-	en := i18n.NewLocalizer(bundle, "en")
-	fmt.Println(de.Localize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "greeting1",
-			Other: "Hello, {{.Name}}",
-		},
-		TemplateData: map[string]any{
-			"Name": "Eugen",
-		},
-	}))
-	fmt.Println(en.Localize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "greeting1",
-			Other: "Hello, {{.Name}}",
-		},
-		TemplateData: map[string]any{
-			"Name": "Eugen",
-		},
-	}))
+	util.Localizers["de"] = i18n.NewLocalizer(util.Bundle, "de")
+	util.Localizers["en"] = i18n.NewLocalizer(util.Bundle, "en")
+
+	// msg := &i18n.LocalizeConfig{
+	// 	DefaultMessage: &i18n.Message{
+	// 		ID:    "greeting1",
+	// 		Other: "Hello, {{.Name}}",
+	// 	},
+	// 	TemplateData: map[string]any{
+	// 		"Name": "Diana",
+	// 	},
+	// }
+
+	// fmt.Println(de.Localize(msg))
+	// fmt.Println(en.Localize(msg))
 
 	controller := Controller{app: &app}
 
