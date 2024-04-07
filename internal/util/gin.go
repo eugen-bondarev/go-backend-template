@@ -61,6 +61,20 @@ func getLocalizer(ctx *gin.Context) *i18n.Localizer {
 	return Localizers["en"]
 }
 
+func getErrorData(ctx *gin.Context, err error) (int, string) {
+	parsedErr, ok := err.(*APIError)
+	if ok {
+		if localizer := getLocalizer(ctx); localizer != nil {
+			localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
+			return parsedErr.StatusCode, localized
+		} else {
+			return parsedErr.StatusCode, parsedErr.LocalizeConfig.DefaultMessage.Other
+		}
+	}
+
+	return 500, err.Error()
+}
+
 func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		err := handler(ctx)
@@ -71,26 +85,11 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 		}
 
 		ctx.Header("Content-Type", "application/problem+json")
-		parsedErr, ok := err.(*APIError)
-		if ok {
-			if localizer := getLocalizer(ctx); localizer != nil {
-				localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
-				ctx.JSON(parsedErr.StatusCode, gin.H{
-					"error": localized,
-				})
-			} else {
-				ctx.JSON(parsedErr.StatusCode, gin.H{
-					"error": parsedErr.LocalizeConfig.DefaultMessage.Other,
-				})
-			}
-			ctx.Abort()
-			return
-		}
 
-		ctx.JSON(500, gin.H{
-			"error": err.Error(),
+		statusCode, errStr := getErrorData(ctx, err)
+		ctx.AbortWithStatusJSON(statusCode, gin.H{
+			"error": errStr,
 		})
-		ctx.Abort()
 	}
 }
 
@@ -104,24 +103,9 @@ func DecorateHandler(handler CustomHandler) GinHandler {
 
 		if err != nil {
 			ctx.Header("Content-Type", "application/problem+json")
-			parsedErr, ok := err.(*APIError)
-			if ok {
-				if localizer := getLocalizer(ctx); localizer != nil {
-					fmt.Println(localizer)
-					localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
-
-					ctx.JSON(parsedErr.StatusCode, gin.H{
-						"error": localized,
-					})
-					return
-				}
-				ctx.JSON(parsedErr.StatusCode, gin.H{
-					"error": parsedErr.LocalizeConfig.DefaultMessage.Other,
-				})
-				return
-			}
-			ctx.JSON(500, gin.H{
-				"error": err.Error(),
+			statusCode, errStr := getErrorData(ctx, err)
+			ctx.AbortWithStatusJSON(statusCode, gin.H{
+				"error": errStr,
 			})
 			return
 		}
