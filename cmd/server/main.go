@@ -2,6 +2,7 @@ package main
 
 import (
 	"go-backend-template/internal/dto"
+	"go-backend-template/internal/localization"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/permissions"
 	"go-backend-template/internal/postgres"
@@ -14,9 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"github.com/pelletier/go-toml/v2"
-	"golang.org/x/text/language"
 )
 
 type App struct {
@@ -98,26 +96,7 @@ func main() {
 
 	app := MustInitApp()
 
-	util.Bundle = i18n.NewBundle(language.English)
-	util.Bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-	util.Bundle.LoadMessageFile("de.toml")
-	util.Localizers = make(map[string]*i18n.Localizer)
-
-	util.Localizers["de"] = i18n.NewLocalizer(util.Bundle, "de")
-	util.Localizers["en"] = i18n.NewLocalizer(util.Bundle, "en")
-
-	// msg := &i18n.LocalizeConfig{
-	// 	DefaultMessage: &i18n.Message{
-	// 		ID:    "greeting1",
-	// 		Other: "Hello, {{.Name}}",
-	// 	},
-	// 	TemplateData: map[string]any{
-	// 		"Name": "Diana",
-	// 	},
-	// }
-
-	// fmt.Println(de.Localize(msg))
-	// fmt.Println(en.Localize(msg))
+	util.Localizer = localization.NewI18nLocalizer()
 
 	controller := Controller{app: &app}
 

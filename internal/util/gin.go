@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"go-backend-template/internal/localization"
 	"strconv"
 	"strings"
 
@@ -9,11 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
-var Bundle *i18n.Bundle
-var Localizers map[string]*i18n.Localizer
+var Localizer localization.Localizer = localization.NewNoopLocalizer()
 
 func GetParamString(params *gin.Params, key string) (string, bool) {
 	return params.Get(key)
@@ -52,24 +51,12 @@ func getLang(ctx *gin.Context) string {
 	return lang
 }
 
-func getLocalizer(ctx *gin.Context) *i18n.Localizer {
-	lang := getLang(ctx)
-	localizer := Localizers[lang]
-	if localizer != nil {
-		return localizer
-	}
-	return Localizers["en"]
-}
-
 func getErrorData(ctx *gin.Context, err error) (int, string) {
 	parsedErr, ok := err.(*APIError)
 	if ok {
-		if localizer := getLocalizer(ctx); localizer != nil {
-			localized, _ := localizer.Localize(&parsedErr.LocalizeConfig)
-			return parsedErr.StatusCode, localized
-		} else {
-			return parsedErr.StatusCode, parsedErr.LocalizeConfig.DefaultMessage.Other
-		}
+		lang := getLang(ctx)
+		translated := Localizer.Translate(parsedErr.Message, lang)
+		return parsedErr.StatusCode, translated
 	}
 
 	return 500, err.Error()

@@ -1,5 +1,5 @@
 [greeting1]
 other = "{{.Name}}, hallo!"
 
-[no-users]
+[getUsers-0]
 other = "es wurden keine Benutzer gefunden"

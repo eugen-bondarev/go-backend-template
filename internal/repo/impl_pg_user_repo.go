@@ -2,6 +2,7 @@ package repo
 
 import (
 	"errors"
+	"go-backend-template/internal/localization"
 	"go-backend-template/internal/model"
 	"go-backend-template/internal/postgres"
 	"go-backend-template/internal/util"
@@ -49,7 +50,11 @@ func (userRepo *PGUserRepo) getUsers() ([]postgres.PGUser, error) {
 
 	err := userRepo.pg.GetDB().Select(&users, "SELECT * FROM users")
 
-	failedErr := util.NewAPIErrorLoc(500, "getUsers-0", "failed to get users")
+	failedErr := util.NewAPIError(
+		500,
+		localization.NewMessage("getUsers-0", "failed to get users"),
+	)
+	return []postgres.PGUser{}, failedErr
 
 	if err != nil {
 		return []postgres.PGUser{}, failedErr
