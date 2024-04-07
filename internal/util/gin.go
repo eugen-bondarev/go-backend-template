@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"go-backend-template/internal/localization"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
+
+var Localizer localization.Localizer = localization.NewNoopLocalizer()
 
 func GetParamString(params *gin.Params, key string) (string, bool) {
 	return params.Get(key)
@@ -38,6 +41,27 @@ func DecorateMiddleware(handler func(*gin.Context)) func(*gin.Context) {
 	}
 }
 
+func getLang(ctx *gin.Context) string {
+	acceptLangHeader := ctx.GetHeader("Accept-Language")
+	acceptLangs := strings.Split(acceptLangHeader, ",")
+	lang := acceptLangs[0]
+	if len(lang) == 0 {
+		return "en"
+	}
+	return lang
+}
+
+func getErrorData(ctx *gin.Context, err error) (int, string) {
+	parsedErr, ok := err.(*APIError)
+	if ok {
+		lang := getLang(ctx)
+		translated := Localizer.Translate(parsedErr.Message, lang)
+		return parsedErr.StatusCode, translated
+	}
+
+	return 500, err.Error()
+}
+
 func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Context) {
 	return func(ctx *gin.Context) {
 		err := handler(ctx)
@@ -48,19 +72,11 @@ func DecorateRequiredMiddleware(handler func(*gin.Context) error) func(*gin.Cont
 		}
 
 		ctx.Header("Content-Type", "application/problem+json")
-		parsedErr, ok := err.(*APIError)
-		if ok {
-			ctx.JSON(parsedErr.StatusCode, gin.H{
-				"error": parsedErr.Err.Error(),
-			})
-			ctx.Abort()
-			return
-		}
 
-		ctx.JSON(500, gin.H{
-			"error": err.Error(),
+		statusCode, errStr := getErrorData(ctx, err)
+		ctx.AbortWithStatusJSON(statusCode, gin.H{
+			"error": errStr,
 		})
-		ctx.Abort()
 	}
 }
 
@@ -74,15 +90,9 @@ func DecorateHandler(handler CustomHandler) GinHandler {
 
 		if err != nil {
 			ctx.Header("Content-Type", "application/problem+json")
-			parsedErr, ok := err.(*APIError)
-			if ok {
-				ctx.JSON(parsedErr.StatusCode, gin.H{
-					"error": parsedErr.Err.Error(),
-				})
-				return
-			}
-			ctx.JSON(500, gin.H{
-				"error": err.Error(),
+			statusCode, errStr := getErrorData(ctx, err)
+			ctx.AbortWithStatusJSON(statusCode, gin.H{
+				"error": errStr,
 			})
 			return
 		}

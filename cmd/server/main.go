@@ -2,6 +2,7 @@ package main
 
 import (
 	"go-backend-template/internal/dto"
+	"go-backend-template/internal/localization"
 	"go-backend-template/internal/middleware"
 	"go-backend-template/internal/permissions"
 	"go-backend-template/internal/postgres"
@@ -94,6 +95,8 @@ func main() {
 	godotenv.Load()
 
 	app := MustInitApp()
+
+	util.Localizer = localization.NewI18nLocalizer()
 
 	controller := Controller{app: &app}
 

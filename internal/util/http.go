@@ -1,23 +1,22 @@
 package util
 
-import "errors"
+import (
+	"go-backend-template/internal/localization"
+)
 
 type APIError struct {
 	StatusCode int
-	Err        error
+	Message    localization.Message
+	// LocalizeConfig i18n.LocalizeConfig
 }
 
-func NewAPIError(statusCode int, err error) *APIError {
+func NewAPIError(statusCode int, message localization.Message) *APIError {
 	return &APIError{
 		StatusCode: statusCode,
-		Err:        err,
+		Message:    message,
 	}
 }
 
-func NewAPIErrorStr(statusCode int, str string) *APIError {
-	return NewAPIError(statusCode, errors.New(str))
-}
-
 func (r *APIError) Error() string {
-	return r.Err.Error()
+	return r.Message.GetContent()
 }

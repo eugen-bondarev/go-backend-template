@@ -1,0 +1,5 @@
+[greeting1]
+other = "{{.Name}}, hallo!"
+
+[getUsers-0]
+other = "es wurden keine Benutzer gefunden"

@@ -1,19 +1,24 @@
 package svc
 
 import (
+	"errors"
 	"go-backend-template/internal/model"
-	"go-backend-template/internal/util"
 )
 
+// var (
+// 	ErrAuthAuthFailed = util.NewAPIErrorStr(
+// 		403,
+// 		"authentication failed, please check your credentials",
+// 	)
+// 	ErrAuthCreateUserFailed = util.NewAPIErrorStr(
+// 		403,
+// 		"registration failed",
+// 	)
+// )
+
 var (
-	ErrAuthAuthFailed = util.NewAPIErrorStr(
-		403,
-		"authentication failed, please check your credentials",
-	)
-	ErrAuthCreateUserFailed = util.NewAPIErrorStr(
-		403,
-		"registration failed",
-	)
+	ErrAuthAuthFailed       = errors.New("authentication failed, please check your credentials")
+	ErrAuthCreateUserFailed = errors.New("registration failed")
 )
 
 type IAuth interface {
