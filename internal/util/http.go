@@ -7,7 +7,6 @@ import (
 type APIError struct {
 	StatusCode int
 	Message    localization.Message
-	// LocalizeConfig i18n.LocalizeConfig
 }
 
 func NewAPIError(statusCode int, message localization.Message) *APIError {
