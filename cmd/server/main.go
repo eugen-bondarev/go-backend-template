@@ -96,7 +96,7 @@ func main() {
 
 	app := MustInitApp()
 
-	util.Localizer = localization.NewI18nLocalizer()
+	localization.DefaultLocalizer = localization.NewI18nLocalizer()
 
 	controller := Controller{app: &app}
 

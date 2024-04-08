@@ -12,8 +12,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var Localizer localization.Localizer = localization.NewNoopLocalizer()
-
 func GetParamString(params *gin.Params, key string) (string, bool) {
 	return params.Get(key)
 }
@@ -55,7 +53,7 @@ func getErrorData(ctx *gin.Context, err error) (int, string) {
 	parsedErr, ok := err.(*APIError)
 	if ok {
 		lang := getLang(ctx)
-		translated := Localizer.Translate(parsedErr.Message, lang)
+		translated := localization.DefaultLocalizer.Translate(parsedErr.Message, lang)
 		return parsedErr.StatusCode, translated
 	}
 
