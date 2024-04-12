@@ -41,7 +41,10 @@ func MustInitApp() App {
 	)
 	util.PanicOnError(err)
 
-	err = pg.Migrate("./assets/migrations")
+	err = pg.Migrate(
+		"./assets/migrations",
+		os.Getenv("RUN_TEST_MIGRATIONS") == "true",
+	)
 	util.PanicOnError(err)
 
 	userRepo := repo.NewPGUserRepo(&pg)
