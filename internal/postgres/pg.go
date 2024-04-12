@@ -33,7 +33,7 @@ func NewPostgresFromConnectionString(connectionString string) (Postgres, error) 
 		return Postgres{}, err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (index INT, hash VARCHAR)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (index INT)")
 
 	if err != nil {
 		return Postgres{}, err
@@ -44,53 +44,46 @@ func NewPostgresFromConnectionString(connectionString string) (Postgres, error) 
 	}, nil
 }
 
-func (pg *Postgres) getHashFromMigrationsDBAt(i int) (string, bool) {
-	var hashFromDB []string
-	err := pg.db.Select(&hashFromDB, "SELECT hash FROM migrations WHERE index = $1", i)
-
-	if len(hashFromDB) == 0 || err != nil {
-		return "", false
-	}
-
-	return hashFromDB[0], true
-}
-
-func (pg *Postgres) insertHash(i int, hash string) error {
-	_, err := pg.db.Exec("INSERT INTO migrations (index, hash) VALUES ($1, $2)", i, hash)
-	return err
-}
-
-func (pg *Postgres) getNumMigrations() (int, error) {
-	var count []int
-	err := pg.db.Select(&count, "SELECT COUNT(*) FROM migrations")
-
-	if err != nil || len(count) == 0 {
-		return 0, err
-	}
-
-	return count[0], nil
-}
-
-func (pg *Postgres) Migrate(migrationsDir string) error {
+func (pg *Postgres) Migrate(migrationsDir string, runTestMigrations bool) error {
 	ctx := context.Background()
-
-	tx, err := pg.db.BeginTx(ctx, nil)
+	tx, err := pg.db.BeginTxx(ctx, nil)
 
 	if err != nil {
 		return err
 	}
 
-	defer tx.Rollback()
+	err = pg.migrate(tx, migrationsDir, runTestMigrations)
 
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (pg *Postgres) migrate(tx *sqlx.Tx, migrationsDir string, runTestMigrations bool) error {
 	migrationsPattern := migrationsDir + "/*.sql"
-	migrations, err := filepath.Glob(migrationsPattern)
+	migrations, _ := filepath.Glob(migrationsPattern)
 
-	if err != nil {
-		return err
+	// Subtract test migrations
+	if !runTestMigrations {
+		testMigrationsPattern := migrationsDir + "/test.*.sql"
+		testMigrations, _ := filepath.Glob(testMigrationsPattern)
+		migrations = util.Diff(migrations, testMigrations)
 	}
 
-	for i, path := range migrations {
+	lastMigIndex := pg.getLastMigrationIndex()
+
+	if lastMigIndex+1 > len(migrations) {
+		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(migrations), lastMigIndex+1)
+	}
+
+	remainingMigrations := migrations[lastMigIndex+1:]
+
+	for i, path := range remainingMigrations {
 		fmt.Printf("Running migration %s\n", path)
+
+		normalizedIndex := i + lastMigIndex + 1
 		contentBytes, err := os.ReadFile(path)
 
 		if err != nil {
@@ -99,42 +92,60 @@ func (pg *Postgres) Migrate(migrationsDir string) error {
 
 		content := string(contentBytes)
 
-		hashNum := util.HashFNV32a(content)
-		hash := fmt.Sprintf("%v", hashNum)
-		hashFromDB, exists := pg.getHashFromMigrationsDBAt(i)
-
-		if exists && hashFromDB != hash {
-			panic("migration " + path + " was updated, which is not allowed")
-		}
-
-		_, err = pg.db.Exec(content)
+		_, err = tx.Exec(content)
 
 		if err != nil {
 			return err
 		}
 
-		if exists {
-			continue
-		}
-
-		err = pg.insertHash(i, hash)
-
+		err = pg.insertMigration(tx, normalizedIndex)
 		if err != nil {
 			return err
 		}
 	}
 
-	count, err := pg.getNumMigrations()
+	count, err := pg.getNumMigrations(tx)
 
 	if err != nil {
 		return err
 	}
 
 	if count != len(migrations) {
-		panic(fmt.Sprintf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(migrations), count))
+		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(migrations), count)
 	}
 
-	return tx.Commit()
+	return nil
+}
+
+func (pg *Postgres) insertMigration(tx *sqlx.Tx, i int) error {
+	_, err := tx.Exec("INSERT INTO migrations (index) VALUES ($1)", i)
+	return err
+}
+
+func (pg *Postgres) getNumMigrations(tx *sqlx.Tx) (int, error) {
+	var count []int
+	err := tx.Select(&count, "SELECT COUNT(*) FROM migrations")
+
+	if err != nil || len(count) == 0 {
+		return 0, err
+	}
+
+	return count[0], nil
+}
+
+func (pg *Postgres) getLastMigrationIndex() int {
+	index := []int{}
+	err := pg.db.Select(&index, "SELECT index FROM migrations ORDER BY index DESC LIMIT 1")
+
+	if err != nil {
+		return -1
+	}
+
+	if len(index) == 0 {
+		return -1
+	}
+
+	return index[0]
 }
 
 func (pg *Postgres) ExecFile(path string) error {
