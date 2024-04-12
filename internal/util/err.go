@@ -1,9 +1,5 @@
 package util
 
-import (
-	"go-backend-template/internal/localization"
-)
-
 func PanicOnError(err error) {
 	if err == nil {
 		return
@@ -11,18 +7,12 @@ func PanicOnError(err error) {
 	panic(err.Error())
 }
 
-type APIError struct {
-	StatusCode int
-	Message    localization.Message
-}
-
-func NewAPIError(statusCode int, message localization.Message) *APIError {
-	return &APIError{
-		StatusCode: statusCode,
-		Message:    message,
+func EvalUntilErr(fcs []func() error) error {
+	for _, f := range fcs {
+		err := f()
+		if err != nil {
+			return err
+		}
 	}
-}
-
-func (r *APIError) Error() string {
-	return r.Message.GetContent()
+	return nil
 }
