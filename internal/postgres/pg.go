@@ -26,14 +26,13 @@ func NewPostgres(host, username, password, port string) (Postgres, error) {
 	return NewPostgresFromConnectionString(connectionStr)
 }
 
+func createMigrationsTable(db *sqlx.DB, migrationsTable string) error {
+	_, err := db.Exec("CREATE TABLE IF NOT EXISTS " + migrationsTable + " (index INT)")
+	return err
+}
+
 func NewPostgresFromConnectionString(connectionString string) (Postgres, error) {
 	db, err := sqlx.Connect("postgres", connectionString)
-
-	if err != nil {
-		return Postgres{}, err
-	}
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS migrations (index INT)")
 
 	if err != nil {
 		return Postgres{}, err
@@ -52,7 +51,7 @@ func (pg *Postgres) Migrate(migrationsDir string, runTestMigrations bool) error 
 		return err
 	}
 
-	err = pg.migrate(tx, migrationsDir, runTestMigrations)
+	err = pg.migrate(pg.db, tx, migrationsDir, runTestMigrations)
 
 	if err != nil {
 		return err
@@ -61,29 +60,52 @@ func (pg *Postgres) Migrate(migrationsDir string, runTestMigrations bool) error 
 	return tx.Commit()
 }
 
-func (pg *Postgres) migrate(tx *sqlx.Tx, migrationsDir string, runTestMigrations bool) error {
-	migrationsPattern := migrationsDir + "/*.sql"
+func getMigrations(dir string, pattern string) []string {
+	migrationsPattern := dir + "/" + pattern
 	migrations, _ := filepath.Glob(migrationsPattern)
+	return migrations
+}
 
-	// Subtract test migrations
-	if !runTestMigrations {
-		testMigrationsPattern := migrationsDir + "/test.*.sql"
-		testMigrations, _ := filepath.Glob(testMigrationsPattern)
-		migrations = util.Diff(migrations, testMigrations)
+func (pg *Postgres) migrate(db *sqlx.DB, tx *sqlx.Tx, migrationsDir string, runTestMigrations bool) error {
+	testMigrations := getMigrations(migrationsDir, "test.*.sql")
+	migrations := util.Diff(getMigrations(migrationsDir, "*.sql"), testMigrations)
+
+	return util.EvalUntilErr([]func() error{
+		func() error {
+			return createMigrationsTable(db, "migrations")
+		},
+		func() error {
+			return pg.migrateFiles(tx, migrations, "migrations")
+		},
+		func() error {
+			if !runTestMigrations {
+				return nil
+			}
+			return createMigrationsTable(db, "test_migrations")
+		},
+		func() error {
+			if !runTestMigrations {
+				return nil
+			}
+			return pg.migrateFiles(tx, testMigrations, "test_migrations")
+		},
+	})
+}
+
+func (pg *Postgres) migrateFiles(tx *sqlx.Tx, files []string, migrationsTable string) error {
+	lastMigIndex := pg.getLastMigrationIndex(migrationsTable)
+
+	if lastMigIndex+1 == len(files) {
+		return nil
 	}
 
-	lastMigIndex := pg.getLastMigrationIndex()
-
-	if lastMigIndex+1 > len(migrations) {
-		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(migrations), lastMigIndex+1)
+	if lastMigIndex+1 > len(files) {
+		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(files), lastMigIndex+1)
 	}
 
-	remainingMigrations := migrations[lastMigIndex+1:]
-
-	for i, path := range remainingMigrations {
+	for i, path := range files[lastMigIndex+1:] {
 		fmt.Printf("Running migration %s\n", path)
 
-		normalizedIndex := i + lastMigIndex + 1
 		contentBytes, err := os.ReadFile(path)
 
 		if err != nil {
@@ -98,33 +120,33 @@ func (pg *Postgres) migrate(tx *sqlx.Tx, migrationsDir string, runTestMigrations
 			return err
 		}
 
-		err = pg.insertMigration(tx, normalizedIndex)
+		err = pg.insertMigration(tx, migrationsTable, i+lastMigIndex+1)
 		if err != nil {
 			return err
 		}
 	}
 
-	count, err := pg.getNumMigrations(tx)
+	count, err := pg.getNumMigrations(tx, migrationsTable)
 
 	if err != nil {
 		return err
 	}
 
-	if count != len(migrations) {
-		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(migrations), count)
+	if count != len(files) {
+		return fmt.Errorf("found %d migrations on disk, but DB claims to have run %d migrations. Some migrations must have been deleted", len(files), count)
 	}
 
 	return nil
 }
 
-func (pg *Postgres) insertMigration(tx *sqlx.Tx, i int) error {
-	_, err := tx.Exec("INSERT INTO migrations (index) VALUES ($1)", i)
+func (pg *Postgres) insertMigration(tx *sqlx.Tx, migrationsTable string, i int) error {
+	_, err := tx.Exec("INSERT INTO "+migrationsTable+" (index) VALUES ($1)", i)
 	return err
 }
 
-func (pg *Postgres) getNumMigrations(tx *sqlx.Tx) (int, error) {
+func (pg *Postgres) getNumMigrations(tx *sqlx.Tx, migrationsTable string) (int, error) {
 	var count []int
-	err := tx.Select(&count, "SELECT COUNT(*) FROM migrations")
+	err := tx.Select(&count, "SELECT COUNT(*) FROM "+migrationsTable)
 
 	if err != nil || len(count) == 0 {
 		return 0, err
@@ -133,9 +155,9 @@ func (pg *Postgres) getNumMigrations(tx *sqlx.Tx) (int, error) {
 	return count[0], nil
 }
 
-func (pg *Postgres) getLastMigrationIndex() int {
+func (pg *Postgres) getLastMigrationIndex(migrationsTable string) int {
 	index := []int{}
-	err := pg.db.Select(&index, "SELECT index FROM migrations ORDER BY index DESC LIMIT 1")
+	err := pg.db.Select(&index, "SELECT index FROM "+migrationsTable+" ORDER BY index DESC LIMIT 1")
 
 	if err != nil {
 		return -1
