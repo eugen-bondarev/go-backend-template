@@ -79,8 +79,9 @@ func MustInitApp() App {
 	fileManager := svc.NewFileManager(fileRepo, fileStorage)
 
 	policies := permissions.NewPolicies()
-	policies.Add("admin", "index", "users")
-	policies.Add("admin", "manage", "users")
+	admin := permissions.NewSubject("admin")
+	policies.Add(admin.Can("index", "users"))
+	policies.Add(admin.Can("manage", "users"))
 
 	return App{
 		signing:           signing,
