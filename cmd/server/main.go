@@ -24,7 +24,7 @@ type App struct {
 	forgotPassSigning svc.ForgotPassSigning
 	mailer            svc.IMailer
 	auth              svc.IAuth
-	fieManager        svc.IFileManager
+	fileManager       svc.IFileManager
 	policies          permissions.Policies
 }
 
@@ -90,7 +90,7 @@ func MustInitApp() App {
 		forgotPassSigning: forgotPassSigning,
 		mailer:            mailer,
 		auth:              auth,
-		fieManager:        fileManager,
+		fileManager:       fileManager,
 		policies:          policies,
 	}
 }
